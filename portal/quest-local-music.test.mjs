@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { inspectAudioFile, checkMusicSettings, musicBeatAt, classifyMusicTouch, nextMusicBeat, MAX_AUDIO_FILE_BYTES } from './quest-local-music.mjs';
+import { inspectAudioFile, checkMusicSettings, musicBeatAt, classifyMusicTouch, nextMusicBeat, makeLocalMusicReceipt, MAX_AUDIO_FILE_BYTES } from './quest-local-music.mjs';
 
 const mp3 = new Uint8Array([73,68,51,4,0,0,0,0,0,0,0,0]);
 const wav = new Uint8Array([82,73,70,70,12,0,0,0,87,65,86,69]);
@@ -40,4 +40,21 @@ test('manual song offset moves the first beat without altering song start',()=>{
 test('no beat after 24 authored prompts',()=>{
   assert.equal(musicBeatAt(40,10,120,0),null);
   assert.equal(nextMusicBeat(40,10,120,0),null);
+});
+
+test('shareable receipt contains only allowlisted aggregate details',()=>{
+  const r=makeLocalMusicReceipt({
+    posture:'seated',touches:[3,4],controllers:2,recenters:1,elapsedMs:20114,
+    bpm:120,offsetMs:250,errors:[-60,0,40],
+    filename:'private-song.mp3',audioBytes:[3,4],userId:'abc',
+    eventTimestamps:[1,2],headHeight:1.6,deviceId:'secret'
+  });
+  assert.equal(r.schema,'pulse369.local-music-lab.v1');
+  assert.equal(r.localMusic.manualBpm,120);
+  assert.equal(r.rhythm.acceptedTouches,3);
+  for(const key of ['filename','audioBytes','userId','eventTimestamps','headHeight','deviceId','errors']) {
+    assert.equal(Object.hasOwn(r,key),false);
+  }
+  assert.ok(!JSON.stringify(r).includes('private-song.mp3'));
+  assert.ok(!JSON.stringify(r).includes('secret'));
 });
