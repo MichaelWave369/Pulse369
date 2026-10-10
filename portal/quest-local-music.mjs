@@ -1,4 +1,5 @@
-import { classifyRhythmTouch, beatNear, RHYTHM_BEATS } from './quest-rhythm.mjs';
+import { classifyRhythmTouch, beatNear, RHYTHM_BEATS, summarizeRhythm } from './quest-rhythm.mjs';
+import { makeQuestReceipt } from './quest-math.mjs';
 
 export const MAX_AUDIO_FILE_BYTES = 24 * 1024 * 1024;
 export const ALLOWED_EXTENSIONS = ['mp3', 'wav'];
@@ -52,3 +53,18 @@ export function nextMusicBeat(contextSeconds, startSeconds, bpm, offsetMs, count
   return { index, hand: index % 2 ? 'right' : 'left', untilMs };
 }
 
+
+/** Explicit allowlist: no selected file object, filename, raw audio or individual hit times. */
+export function makeLocalMusicReceipt(input) {
+  const {posture,touches,controllers,recenters,elapsedMs,bpm,offsetMs,errors} = input;
+  return {
+    ...makeQuestReceipt({posture,touches,controllers,recenters,elapsedMs}),
+    schema: 'pulse369.local-music-lab.v1',
+    localMusic: {
+      source: 'local-file-not-uploaded',
+      manualBpm: bpm,
+      manualBeatOffsetMs: offsetMs
+    },
+    rhythm: summarizeRhythm(errors,bpm)
+  };
+}
