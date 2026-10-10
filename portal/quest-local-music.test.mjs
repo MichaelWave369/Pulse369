@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { inspectAudioFile, checkMusicSettings, musicBeatAt, classifyMusicTouch, nextMusicBeat, makeLocalMusicReceipt, MAX_AUDIO_FILE_BYTES } from './quest-local-music.mjs';
+import { inspectAudioFile, checkMusicSettings, musicBeatAt, classifyMusicTouch, nextMusicBeat, makeLocalMusicReceipt, preflightLocalAudio, MAX_AUDIO_FILE_BYTES } from './quest-local-music.mjs';
 
 const mp3 = new Uint8Array([73,68,51,4,0,0,0,0,0,0,0,0]);
 const wav = new Uint8Array([82,73,70,70,12,0,0,0,87,65,86,69]);
@@ -57,4 +57,20 @@ test('shareable receipt contains only allowlisted aggregate details',()=>{
   }
   assert.ok(!JSON.stringify(r).includes('private-song.mp3'));
   assert.ok(!JSON.stringify(r).includes('secret'));
+});
+
+test('preflight rejects bad signatures BEFORE calling the decoder',async()=>{
+  const badBytes = new Uint8Array([0,0,0,0,0,0,0,0,0,0,0,0]);
+  const mock={name:'fake.mp3',size:badBytes.byteLength,slice:()=>({arrayBuffer:async()=>badBytes.buffer}),arrayBuffer:async()=>badBytes.buffer};
+  let decoded=false;
+  await assert.rejects(preflightLocalAudio(mock,async()=>{decoded=true;return{duration:30}}),/header/);
+  assert.equal(decoded,false);
+});
+test('preflight checks decoder output and returns decoded duration',async()=>{
+  const bytes = new Uint8Array([73,68,51,4,0,0,0,0,0,0,0,0]);
+  const mock={name:'real.mp3',size:bytes.byteLength,slice:()=>({arrayBuffer:async()=>bytes.buffer}),arrayBuffer:async()=>bytes.buffer};
+  const ok=await preflightLocalAudio(mock,async()=>({duration:38.5}));
+  assert.equal(ok.duration,38.5);
+  await assert.rejects(preflightLocalAudio(mock,async()=>({duration:NaN})),/decoded/);
+  await assert.rejects(preflightLocalAudio(mock,async()=>{throw Error('unsupported codec')}),/unsupported codec/);
 });

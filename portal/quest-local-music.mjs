@@ -68,3 +68,23 @@ export function makeLocalMusicReceipt(input) {
     rhythm: summarizeRhythm(errors,bpm)
   };
 }
+
+/**
+ * Decode a selected song before requesting immersive VR so unreadable files
+ * fail in the 2D interface. The injected decode callback is browser-specific.
+ * No fetch, upload, storage or analytics are performed here.
+ */
+export async function preflightLocalAudio(file, decode) {
+  if (typeof decode !== 'function') throw new TypeError('An audio decoder is required.');
+  if (!file || typeof file.slice !== 'function' || typeof file.arrayBuffer !== 'function') {
+    throw new TypeError('Choose a local audio file.');
+  }
+  const signature = new Uint8Array(await file.slice(0, 12).arrayBuffer());
+  const verdict = inspectAudioFile(file, signature);
+  if (!verdict.ok) throw new Error(verdict.reason);
+  const decoded = await decode(await file.arrayBuffer());
+  if (!decoded || !Number.isFinite(decoded.duration) || decoded.duration <= 0) {
+    throw new Error('The selected audio could not be decoded.');
+  }
+  return decoded;
+}
