@@ -180,7 +180,13 @@ function QuestLab() {
             touches[side]++;
             try {
               const actuator = input.gamepad?.hapticActuators?.[0];
-              if (actuator?.pulse) Promise.resolve(actuator.pulse(.3, 45)).catch(() => {});
+              if (actuator?.pulse) {
+                Promise.resolve(actuator.pulse(.3, 45)).catch(() => {});
+              } else if (input.gamepad?.vibrationActuator?.playEffect) {
+                Promise.resolve(input.gamepad.vibrationActuator.playEffect('dual-rumble', {
+                  duration: 45, strongMagnitude: .3, weakMagnitude: .2
+                })).catch(() => {});
+              }
             } catch { /* No optional haptic support. */ }
           }
           touching[index] = near;
