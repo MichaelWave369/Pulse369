@@ -190,6 +190,7 @@ function DesktopRehearsal() {
   return <div className="shell quest-shell">
     <header className="quest-header">
       <a className="logo" href="./"><span className="sigil">ϕ</span>PULSE <b>369</b></a>
+      <a href="compare.html">QA COMPARE ↗</a>
       <a href="music.html">← MUSIC LAB</a>
     </header>
     <main className="quest-main">
