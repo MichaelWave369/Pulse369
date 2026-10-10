@@ -64,3 +64,25 @@ After exit, an optional **Copy QA receipt** control gives a minimized JSON summa
 6. Repeat multiple enter/exit cycles for WebGL cleanup and stable controller state.
 
 These changes are not yet measured on physical Quest hardware. Headset height is displayed locally only and does not become part of the shared receipt.
+
+## Quest Lab v3: visual rhythm-entry timing (proposed PR #5)
+
+The isolated public Quest Lab now offers **Free touch** and optional **Visual rhythm (24 beats)** modes with a selectable **90 or 120 BPM**. Rhythm mode schedules 24 alternating left/right visual cues from one monotonic browser clock after a short lead-in.
+
+- Cue rings brighten shortly before the authored beat. Enter a highlighted ring gently with the **matching controller** and leave it before the next cue.
+- Only the first correct-hand ring-entry within **±220 ms** of each expected beat is counted. A wrong-hand touch, early/late entry outside the window, or second hit on the same beat does not score. This is a deliberately simple timing drill, not a game difficulty or physical-reaction assessment.
+- On exit, the anonymous receipt includes **aggregate** accepted touches, mean absolute authored-beat error, signed median error, and early/late/on-beat counts. Empty samples produce `null` error metrics rather than invented precision.
+- No audio is played, no Suno track is requested, and per-touch event timestamps, raw controller poses, head height, headset identity, account data and music metadata are excluded from the receipt.
+- The visual beat is calculated against the browser's frame clock. **This does not measure input-device latency, audiovisual synchronization, physical reaction time, or music onset accuracy.** Real hardware acceptance remains necessary.
+
+### Quest 3 check
+
+1. Choose standing/seated, then Visual rhythm at 90 BPM before entering.
+2. Use the grip to recenter targets and verify rings are in front of the headset.
+3. Look for 24 alternating ring cues. Enter the highlighted target on the beat with the corresponding controller; leave it between cues.
+4. Test a deliberately wrong hand and an early touch outside the cue window. Neither should count.
+5. Exit with the trigger, copy the receipt, and inspect that it contains only aggregate metrics and **no individual touch timestamps**.
+6. Retry at 120 BPM. Confirm neither mode affects the original full Pulse 369 workout engine or uploaded music.
+7. Repeat entering/exiting to check browser performance and WebXR cleanup.
+
+Pure scheduling tests run in CI via `node --test portal/quest-rhythm.test.mjs`.
