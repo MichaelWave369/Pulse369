@@ -1,0 +1,41 @@
+{
+  "version": "7",
+  "dialect": "sqlite",
+  "entries": [
+    {
+      "idx": 0,
+      "version": "6",
+      "when": 1791435658549,
+      "tag": "0000_absurd_brood",
+      "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "6",
+      "when": 1791437411576,
+      "tag": "0001_overconfident_venom",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "6",
+      "when": 1791444287263,
+      "tag": "0002_dusty_rage",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "6",
+      "when": 1791446998320,
+      "tag": "0003_wealthy_prima",
+      "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "6",
+      "when": 1791449554134,
+      "tag": "0004_living_winter_soldier",
+      "breakpoints": true
+    }
+  ]
+}
