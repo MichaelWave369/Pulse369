@@ -45,5 +45,7 @@ jobs:
         run: node --test portal/desktop-rhythm.test.mjs
       - name: QA receipt structure and provenance tests
         run: node --test portal/qa-compare.test.mjs
+      - name: Manual Quest first-run provenance and gating tests
+        run: node --test portal/quest-first-run.test.mjs
       - name: Worker integration checks
         run: node scripts/verify-studio.mjs
