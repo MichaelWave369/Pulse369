@@ -334,6 +334,7 @@ function MusicLab() {
     <header className="quest-header">
       <a href="./" className="logo"><span className="sigil">ϕ</span>PULSE <b>369</b></a>
       <a href="rehearsal.html">DESKTOP REHEARSAL ↗</a>
+      <a href="compare.html">QA COMPARE ↗</a>
       <a href="quest.html">← QUEST LAB</a>
     </header>
     <main className="quest-main">
