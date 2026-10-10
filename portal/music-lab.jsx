@@ -1,9 +1,9 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { createRoot } from 'react-dom/client';
 import * as THREE from 'three';
-import { computeReachLayout, makeQuestReceipt } from './quest-math.mjs';
-import { classifyMusicTouch, checkMusicSettings, inspectAudioFile, musicBeatAt, nextMusicBeat } from './quest-local-music.mjs';
-import { RHYTHM_BEATS, summarizeRhythm } from './quest-rhythm.mjs';
+import { computeReachLayout } from './quest-math.mjs';
+import { classifyMusicTouch, checkMusicSettings, inspectAudioFile, musicBeatAt, nextMusicBeat, makeLocalMusicReceipt } from './quest-local-music.mjs';
+import { RHYTHM_BEATS } from './quest-rhythm.mjs';
 import './styles.css';
 import './quest-lab.css';
 import './music-lab.css';
@@ -111,15 +111,11 @@ function MusicLab() {
       try{renderer?.dispose();renderer?.domElement.remove();}catch{}
       if (ctx && ctx.state!=='closed') void ctx.close().catch(()=>{});
       running.current=null;
-      if(started) setReceipt({
-        ...makeQuestReceipt({
-          posture,touches,controllers:maxControllers,
-          recenters:Math.max(0,recenters-1),elapsedMs:Date.now()-startedAt
-        }),
-        schema:'pulse369.local-music-lab.v1',
-        localMusic:{source:'local-file-not-uploaded',manualBpm:bpm,manualBeatOffsetMs:offsetMs},
-        rhythm:summarizeRhythm(errors,bpm),
-      });
+      if(started) setReceipt(makeLocalMusicReceipt({
+        posture,touches,controllers:maxControllers,
+        recenters:Math.max(0,recenters-1),elapsedMs:Date.now()-startedAt,
+        bpm,offsetMs,errors
+      }));
       setPhase('idle');
       setStatus(problem || (finished?'Finished all 24 visual beats. Anonymous summary available.':
         'VR ended. Anonymous summary available if music started.'));
