@@ -46,7 +46,7 @@ export function classifyMusicTouch(contextSeconds, startSeconds, bpm, offsetMs, 
 export function nextMusicBeat(contextSeconds, startSeconds, bpm, offsetMs, count = RHYTHM_BEATS) {
   if (![contextSeconds,startSeconds,bpm,offsetMs].every(Number.isFinite) || bpm <= 0) return null;
   const period = 60 / bpm;
-  const index = Math.ceil(((contextSeconds - startSeconds) - offsetMs / 1000) / period);
+  const index = Math.ceil(((contextSeconds - startSeconds) - offsetMs / 1000) / period) || 0;
   if (index < 0 || index >= count) return null;
   const untilMs = (startSeconds + offsetMs / 1000 + index * period - contextSeconds) * 1000;
   return { index, hand: index % 2 ? 'right' : 'left', untilMs };
