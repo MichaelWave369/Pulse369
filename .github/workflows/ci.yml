@@ -10,7 +10,7 @@ permissions:
 
 jobs:
   verify:
-    name: Typecheck, game, build, Worker tests
+    name: Typecheck, game, portal, build, Worker tests
     runs-on: ubuntu-latest
     timeout-minutes: 25
     steps:
@@ -33,5 +33,7 @@ jobs:
         run: node scripts/verify-game.mjs
       - name: Build browser and Worker
         run: pnpm run build
+      - name: Build public React portal
+        run: pnpm exec vite build --config portal/vite.config.ts
       - name: Worker integration checks
         run: node scripts/verify-studio.mjs
