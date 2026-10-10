@@ -27,7 +27,7 @@ export function computeReachLayout(head, forward, posture = 'standing') {
     left: [centerX - rightX * spread, reachY, centerZ - rightZ * spread],
     right: [centerX + rightX * spread, reachY, centerZ + rightZ * spread],
     label: [centerX, reachY + 0.49, centerZ],
-    labelYaw: Math.atan2(-fx, -fz),
+    labelYaw: Math.atan2(-fx, -fz) || 0,
   };
 }
 function clamp(value, lo, hi) { return Math.min(hi, Math.max(lo, value)); }
