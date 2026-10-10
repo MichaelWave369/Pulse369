@@ -39,5 +39,7 @@ jobs:
         run: node --test portal/quest-math.test.mjs
       - name: Quest rhythm scheduling tests
         run: node --test portal/quest-rhythm.test.mjs
+      - name: Local music file and Web Audio clock tests
+        run: node --test portal/quest-local-music.test.mjs
       - name: Worker integration checks
         run: node scripts/verify-studio.mjs
