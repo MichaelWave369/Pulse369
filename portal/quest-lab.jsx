@@ -191,7 +191,7 @@ function QuestLab() {
           const nextIndex = Math.ceil((now - beatAnchor) / periodMs);
           if (nextIndex >= 0 && nextIndex < RHYTHM_BEATS) {
             const until = beatAnchor + nextIndex * periodMs - now;
-            if (until >= 0 && until <= 300) targetCueScale[nextIndex % 2] = 1.12 + .17 * (1 - until / 300);
+            if (until >= 0 && until <= 190) targetCueScale[nextIndex % 2] = 1.12 + .17 * (1 - until / 190);
           }
           const nearest = beatNear(now, beatAnchor, tempo);
           if (nearest && Math.abs(nearest.errorMs) < 125) {
