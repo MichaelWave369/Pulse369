@@ -43,5 +43,7 @@ jobs:
         run: node --test portal/quest-local-music.test.mjs
       - name: Desktop rehearsal clock and privacy tests
         run: node --test portal/desktop-rhythm.test.mjs
+      - name: QA receipt structure and provenance tests
+        run: node --test portal/qa-compare.test.mjs
       - name: Worker integration checks
         run: node scripts/verify-studio.mjs
