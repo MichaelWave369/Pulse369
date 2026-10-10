@@ -2,7 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { createRoot } from 'react-dom/client';
 import * as THREE from 'three';
 import { computeReachLayout } from './quest-math.mjs';
-import { classifyMusicTouch, checkMusicSettings, inspectAudioFile, musicBeatAt, nextMusicBeat, makeLocalMusicReceipt } from './quest-local-music.mjs';
+import { classifyMusicTouch, checkMusicSettings, preflightLocalAudio, musicBeatAt, nextMusicBeat, makeLocalMusicReceipt } from './quest-local-music.mjs';
 import { RHYTHM_BEATS } from './quest-rhythm.mjs';
 import './styles.css';
 import './quest-lab.css';
@@ -10,7 +10,6 @@ import './music-lab.css';
 
 // WebXR and audio experiments run entirely inside the visitor's browser.
 // Audio files never leave memory; no fetch/upload/account/analytics calls.
-const fmt = value => Number.isFinite(value) ? value.toFixed(1) : '—';
 
 function makeSign(text) {
   const canvas = document.createElement('canvas');
@@ -43,11 +42,15 @@ function tryHaptic(input) {
 function MusicLab() {
   const host = useRef(null);
   const running = useRef(null);
+  const decodedRef = useRef(null);
+  const choiceToken = useRef(0);
+  const previewRef = useRef(null);
   const [phase,setPhase] = useState('idle');
   const [support,setSupport] = useState('Checking WebXR…');
   const [file,setFile] = useState(null);
   const [audioCheck,setAudioCheck] = useState('Choose a downloaded MP3 or WAV under 24 MB.');
   const [fileReady,setFileReady] = useState(false);
+  const [previewing,setPreviewing] = useState(false);
   const [posture,setPosture] = useState('standing');
   const [bpm,setBpm] = useState(120);
   const [offsetMs,setOffsetMs] = useState(0);
@@ -66,31 +69,91 @@ function MusicLab() {
       .catch(error=>{if(live)setSupport('Could not query VR support: '+error.message);});
     return ()=>{live=false;};
   },[]);
-  useEffect(()=>()=>{if(running.current)void running.current.session.end().catch(()=>{});},[]);
+  useEffect(()=>()=> {
+    choiceToken.current++;
+    if(running.current) void running.current.session.end().catch(()=>{});
+    const preview=previewRef.current;
+    previewRef.current=null;
+    if(preview){
+      try{preview.source.stop();}catch{}
+      void preview.ctx.close().catch(()=>{});
+    }
+    decodedRef.current=null;
+  },[]);
+
+  function stopPreview(){
+    const preview=previewRef.current;
+    previewRef.current=null;
+    if(preview){
+      try{preview.source.stop();}catch{}
+      void preview.ctx.close().catch(()=>{});
+    }
+    setPreviewing(false);
+  }
+
+  async function previewAudio(){
+    if(!fileReady||!decodedRef.current||phase!=='idle'||previewRef.current)return;
+    const AudioCtor=window.AudioContext||window.webkitAudioContext;
+    if(!AudioCtor){setStatus('Web Audio is not available in this browser.');return;}
+    let context=null;
+    try{
+      context=new AudioCtor({latencyHint:'playback'});
+      const source=context.createBufferSource();
+      source.buffer=decodedRef.current;
+      const gain=context.createGain();
+      gain.gain.value=.3;
+      source.connect(gain);gain.connect(context.destination);
+      previewRef.current={ctx:context,source};
+      source.onended=()=>{
+        if(previewRef.current?.source===source)stopPreview();
+      };
+      await context.resume();
+      if(previewRef.current?.source!==source)return;
+      source.start();
+      source.stop(context.currentTime+Math.min(8,source.buffer.duration));
+      setPreviewing(true);
+      setStatus('Playing an 8-second local preview. No upload or VR session.');
+    }catch(error){
+      if(previewRef.current?.ctx===context)stopPreview();
+      else if(context)void context.close().catch(()=>{});
+      setStatus('Local audio preview failed: '+error.message);
+    }
+  }
 
   async function pickFile(event) {
-    const chosen = event.target.files?.[0] || null;
-    setFile(null); setFileReady(false); setReceipt(null);
-    if (!chosen) {setAudioCheck('Choose a downloaded MP3 or WAV under 24 MB.');return;}
-    try {
-      if (chosen.size > 24*1024*1024 || chosen.size<=0) {
-        setAudioCheck('This file is empty or over the 24 MB limit.'); return;
-      }
-      const bytes = new Uint8Array(await chosen.slice(0,12).arrayBuffer());
-      const verdict = inspectAudioFile(chosen,bytes);
-      if (!verdict.ok) {setAudioCheck(verdict.reason);return;}
+    const id=++choiceToken.current;
+    stopPreview();
+    decodedRef.current=null;
+    const chosen=event.target.files?.[0]||null;
+    setFile(null);setFileReady(false);setReceipt(null);
+    if(!chosen){setAudioCheck('Choose a downloaded MP3 or WAV under 24 MB.');return;}
+    const AudioCtor=window.AudioContext||window.webkitAudioContext;
+    if(!AudioCtor){setAudioCheck('Web Audio decoding is not supported in this browser.');return;}
+    setAudioCheck('Checking this audio locally before VR…');
+    let decoder=null;
+    try{
+      // An AudioBuffer does not depend on the context that decoded it.
+      decoder=new AudioCtor();
+      const prepared=await preflightLocalAudio(chosen,bytes=>decoder.decodeAudioData(bytes));
+      if(id!==choiceToken.current)return;
+      decodedRef.current=prepared;
       setFile(chosen);setFileReady(true);
-      setAudioCheck('Ready locally: '+chosen.name+' · '+(chosen.size/1048576).toFixed(1)+' MB. No upload.');
-    } catch (error) {setAudioCheck('Unable to inspect this file: '+error.message);}
+      setAudioCheck('Decoded locally: '+chosen.name+' · '+prepared.duration.toFixed(1)+' seconds · No upload.');
+    }catch(error){
+      if(id===choiceToken.current)setAudioCheck('Cannot use this file: '+error.message);
+    }finally{
+      if(decoder && decoder.state!=='closed')await decoder.close().catch(()=>{});
+    }
   }
 
   async function enter() {
-    if (phase!=='idle'||!fileReady||!file||!navigator.xr) return;
-    const configError = checkMusicSettings(bpm,offsetMs,90);
-    if (configError && !configError.startsWith('This 24-beat drill')) {setStatus(configError);return;}
+    if (phase!=='idle'||!fileReady||!file||!decodedRef.current||!navigator.xr) return;
+    const configError=checkMusicSettings(bpm,offsetMs,decodedRef.current.duration);
+    if(configError){setStatus(configError);return;}
+    stopPreview();
     setPhase('starting');setReceipt(null);
     setReading({beat:'—',left:0,right:0,controllers:0,recenters:0});
-    setStatus('Requesting VR and preparing local audio…');
+    setStatus('Requesting VR using already decoded local audio…');
     let session=null,ctx=null,renderer=null,scene=null,sourceNode=null;
     let started=false,finished=false,ended=false,problem=null;
     const startedAt=Date.now(),touches=[0,0],seen=new Set(),errors=[];
@@ -132,8 +195,8 @@ function MusicLab() {
       session=await xrPromise;
       session.addEventListener('end',clean,{once:true});
       await resumePromise;
-      const audioBytes=await file.arrayBuffer();
-      const buffer=await ctx.decodeAudioData(audioBytes);
+      const buffer=decodedRef.current;
+      if(!buffer)throw new Error('Selected audio is not ready. Choose it again.');
       const validation=checkMusicSettings(bpm,offsetMs,buffer.duration);
       if(validation) throw new Error(validation);
       sourceNode=ctx.createBufferSource();
@@ -256,6 +319,9 @@ function MusicLab() {
   const exit=()=>{
     if(running.current)void running.current.session.end().catch(e=>setStatus(e.message));
   };
+  const settingsError=fileReady&&decodedRef.current
+    ? checkMusicSettings(bpm,offsetMs,decodedRef.current.duration)
+    : null;
   const copy=async()=>{
     if(!receipt)return;
     try {
@@ -282,6 +348,10 @@ function MusicLab() {
               disabled={phase!=='idle'} onChange={pickFile}/>
           </label>
           <p role="status">{audioCheck}</p>
+          {fileReady && <div className="music-preview-controls">
+            <button type="button" disabled={phase!=='idle'||previewing} onClick={previewAudio}>LISTEN LOCALLY · 8 SEC</button>
+            <button type="button" className="secondary" disabled={!previewing} onClick={stopPreview}>STOP PREVIEW</button>
+          </div>}
           <div className="music-fields">
             <label>BPM (MANUAL)
               <input type="number" min="60" max="180" step="1" value={bpm} disabled={phase!=='idle'}
@@ -292,13 +362,14 @@ function MusicLab() {
                 onChange={e=>setOffsetMs(Number(e.target.value))}/>
             </label>
           </div>
+          {settingsError && <p className="music-validation" role="alert">{settingsError}</p>}
           <fieldset className="quest-posture" disabled={phase!=='idle'}><legend>REACH MODE</legend>
             <label><input type="radio" checked={posture==='standing'} onChange={()=>setPosture('standing')}/> Standing</label>
             <label><input type="radio" checked={posture==='seated'} onChange={()=>setPosture('seated')}/> Seated</label>
           </fieldset>
           <p>In Quest Browser, enter VR. Your song will begin after a short lead-in. Follow the alternating left/right cues. Grip to recenter; trigger to exit. The 24-beat test ends automatically.</p>
           <div className="quest-actions">
-            <button disabled={phase!=='idle'||!fileReady||!navigator.xr} onClick={enter}>START LOCAL MUSIC VR ↗</button>
+            <button disabled={phase!=='idle'||!fileReady||Boolean(settingsError)||!navigator.xr} onClick={enter}>START LOCAL MUSIC VR ↗</button>
             <button className="secondary" disabled={phase!=='active'} onClick={exit}>FINISH</button>
           </div>
           <p role="status" className="notice">{status}</p>
