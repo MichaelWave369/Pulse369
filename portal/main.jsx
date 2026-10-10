@@ -37,7 +37,8 @@ function App() {
       <nav id="navigation" className={menuOpen?'open':''}>
         <a href="#modes" onClick={()=>setMenuOpen(false)}>THE MODES</a>
         <a href="#worlds" onClick={()=>setMenuOpen(false)}>THE WORLDS</a>
-        <a href="quest.html" onClick={()=>setMenuOpen(false)}>QUEST LAB</a>\n        <a href="music.html" onClick={()=>setMenuOpen(false)}>MUSIC LAB</a>
+        <a href="quest.html" onClick={()=>setMenuOpen(false)}>QUEST LAB</a>
+        <a href="music.html" onClick={()=>setMenuOpen(false)}>MUSIC LAB</a>
         <a href="#build" onClick={()=>setMenuOpen(false)}>THE BUILD</a>
         <a href={REPO} target="_blank" rel="noreferrer">GITHUB ↗</a>
       </nav>
