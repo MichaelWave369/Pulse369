@@ -41,3 +41,7 @@ This is a **separate, public, browser-only diagnostic**, not the full Pulse 369 
 ## Preflight verification
 
 The preflight routine in `portal/quest-local-music.mjs` validates extension, file size and header, then uses an injected browser decoder to ensure the file is actually playable before entering an immersive session. The `AudioBuffer` is reused by the scheduled playback context; audio and per-contact timestamps remain local. On a rapid file change, the previous asynchronous decode cannot overwrite the newest selection. An eight-second optional preview uses a separate AudioContext opened by user interaction and closed on stop, file change, or unmount. Unit tests include fake header, rejected codec, invalid duration, and successful decoding cases.
+
+## Desktop rehearsal (new)
+
+For testing song timing without putting on a headset, use the separate public route `/Pulse369/rehearsal.html` (after its PR merges). Select a local MP3/WAV, choose manually authored BPM and beat offset, then press **A** and **L** in the 24-beat alternating timing drill. This uses the same Web Audio-based scheduled beat and scoring helpers as the Quest Music Lab but is marked as **desktop keyboard/touch input**, not headset-controller movement. See `docs/DESKTOP_REHEARSAL.md` for a complete manual test checklist.
