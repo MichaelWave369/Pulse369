@@ -37,7 +37,7 @@ function App() {
       <nav id="navigation" className={menuOpen?'open':''}>
         <a href="#modes" onClick={()=>setMenuOpen(false)}>THE MODES</a>
         <a href="#worlds" onClick={()=>setMenuOpen(false)}>THE WORLDS</a>
-        <a href="quest.html" onClick={()=>setMenuOpen(false)}>QUEST LAB</a>
+        <a href="quest.html" onClick={()=>setMenuOpen(false)}>QUEST LAB</a>\n        <a href="music.html" onClick={()=>setMenuOpen(false)}>MUSIC LAB</a>
         <a href="#build" onClick={()=>setMenuOpen(false)}>THE BUILD</a>
         <a href={REPO} target="_blank" rel="noreferrer">GITHUB ↗</a>
       </nav>
@@ -49,7 +49,7 @@ function App() {
           <h1>FIND YOUR<br/><em>PULSE<span>.</span></em></h1>
           <h2>MOVE. FOCUS. RECOVER.</h2>
           <p>Train to your own rhythm. Discover new worlds. Recover on your terms. Pulse 369 explores where movement, music and community meet.</p>
-          <div className="actions"><a className="btn solid" href="#modes">EXPLORE MODES ↗</a><a className="btn outline" href={REPO} target="_blank" rel="noreferrer">VIEW SOURCE ↗</a><a className="btn outline" href="quest.html">QUEST 3 LAB ↗</a></div>
+          <div className="actions"><a className="btn solid" href="#modes">EXPLORE MODES ↗</a><a className="btn outline" href={REPO} target="_blank" rel="noreferrer">VIEW SOURCE ↗</a><a className="btn outline" href="quest.html">QUEST 3 LAB ↗</a><a className="btn outline" href="music.html">LOCAL MUSIC LAB ↗</a></div>
           <p className="note">PUBLIC SHOWCASE · NO ACCOUNT · NO USER TRACKING</p>
         </div>
         <div className="hero-visual" role="img" aria-label="Abstract neon pulse rings surrounding the number 369">
