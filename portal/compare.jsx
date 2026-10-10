@@ -10,6 +10,7 @@ const links = [
   {name: 'Desktop Rehearsal', href: 'rehearsal.html'},
   {name: 'Quest Music Lab', href: 'music.html'},
   {name: 'Quest Rhythm Lab', href: 'quest.html'},
+  {name: 'Quest First Run', href: 'first-run.html'},
 ];
 
 function ReceiptCard({title, data}) {
