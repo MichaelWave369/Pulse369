@@ -40,6 +40,7 @@ function App() {
         <a href="quest.html" onClick={()=>setMenuOpen(false)}>QUEST LAB</a>
         <a href="music.html" onClick={()=>setMenuOpen(false)}>MUSIC LAB</a>
         <a href="rehearsal.html" onClick={()=>setMenuOpen(false)}>DESKTOP REHEARSAL</a>
+        <a href="compare.html" onClick={()=>setMenuOpen(false)}>QA COMPARE</a>
         <a href="#build" onClick={()=>setMenuOpen(false)}>THE BUILD</a>
         <a href={REPO} target="_blank" rel="noreferrer">GITHUB ↗</a>
       </nav>
