@@ -16,6 +16,7 @@ export default defineConfig({
         quest: fileURLToPath(new URL('quest.html', import.meta.url)),
         music: fileURLToPath(new URL('music.html', import.meta.url)),
         rehearsal: fileURLToPath(new URL('rehearsal.html', import.meta.url)),
+        compare: fileURLToPath(new URL('compare.html', import.meta.url)),
       },
     },
   },
