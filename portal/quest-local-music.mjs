@@ -52,15 +52,3 @@ export function nextMusicBeat(contextSeconds, startSeconds, bpm, offsetMs, count
   return { index, hand: index % 2 ? 'right' : 'left', untilMs };
 }
 
-export function sanitizedMusicReceipt({ bpm, offsetMs, errors }) {
-  // Do not serialize file name, raw bytes, file size, per-hit times, controller poses, or user identity.
-  return {
-    schema: 'pulse369.local-music-lab.v1',
-    source: 'selected-local-audio-not-uploaded',
-    manualBpm: bpm,
-    manualOffsetMs: offsetMs,
-    audioSync: 'Web Audio clock scheduling; output latency not calibrated',
-    privacy: 'No audio data, names or identifiers included',
-    errors: Array.isArray(errors) ? errors.slice() : []
-  };
-}
