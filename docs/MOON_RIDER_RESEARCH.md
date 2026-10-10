@@ -40,3 +40,27 @@ The test is **not** a physics, collision-velocity, musical latency, exercise-for
 Moon Rider's MIT license permits source reuse with retained copyright and permission notice. This PR copies no Moon Rider code. If later contributions copy upstream code or assets, include the upstream full LICENSE and verify each asset's provenance. In particular, BeatSaver maps or tracks do not gain reuse rights merely because the Moon Rider game is MIT-licensed.
 
 Issue #1 still blocks hosting the full Pulse backend publicly without replacing platform-specific trusted-identity assumptions.
+
+## Quest Lab v2: heading/reach calibration and diagnostic receipt
+
+The Quest Lab now uses a small pure geometry module (`portal/quest-math.mjs`) to place the two contact rings **relative to the tracked headset's horizontal facing**, instead of fixed room origin. Target heights use bounded estimates from head position, not inferred body size or medical measurements. Choose standing or seated before entering.
+
+Controls in VR:
+- **Grip squeeze** on either supported controller: re-center both test rings relative to the headset's current position and horizontal direction.
+- **Either trigger**: exit the headset test. The Quest system menu can also exit.
+- Move gently and stay in place. Do not overreach; choose seated reach if needed.
+
+After exit, an optional **Copy QA receipt** control gives a minimized JSON summary containing only test mode, maximum number of controllers detected, left/right touch counts, explicit recenter count and elapsed seconds. It omits raw headset coordinates, head height, IP address, account identifiers, music information and unique device IDs. It is **never automatically uploaded**.
+
+`node --test portal/quest-math.test.mjs` runs deterministic geometry and receipt tests without a headset; CI runs these as well.
+
+### Additional real-device checks
+
+1. Open the Quest Lab while facing a different direction than the room's reference orientation; the rings should still appear directly ahead.
+2. Repeat in seated mode, and check that targets are lower and a little closer together.
+3. Rotate your body slightly, squeeze a controller grip and confirm the rings appear in front of your new heading. The recenter count should increase.
+4. On exit, copy the receipt and confirm it does not include raw head/controller positions, IDs, or personal data.
+5. Check haptics if present, but do not fail the test if a headset does not support controller vibration.
+6. Repeat multiple enter/exit cycles for WebGL cleanup and stable controller state.
+
+These changes are not yet measured on physical Quest hardware. Headset height is displayed locally only and does not become part of the shared receipt.

@@ -35,5 +35,7 @@ jobs:
         run: pnpm run build
       - name: Build public React portal
         run: pnpm exec vite build --config portal/vite.config.ts
+      - name: Quest calibration unit tests
+        run: node --test portal/quest-math.test.mjs
       - name: Worker integration checks
         run: node scripts/verify-studio.mjs
