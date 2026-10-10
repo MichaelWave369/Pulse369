@@ -268,7 +268,7 @@ function QuestLab() {
   };
 
   return <div className="shell quest-shell">
-    <header className="quest-header"><a className="logo" href="./"><span className="sigil">ϕ</span>PULSE <b>369</b></a><a href="./">← PUBLIC PORTAL</a></header>
+    <header className="quest-header"><a className="logo" href="./"><span className="sigil">ϕ</span>PULSE <b>369</b></a><a href="music.html">LOCAL MUSIC LAB ↗</a><a href="./">← PUBLIC PORTAL</a></header>
     <main className="quest-main">
       <p className="eyebrow">OPEN WEBXR / QUEST 3 / LOCAL-ONLY QA</p>
       <h1>QUEST <em>LAB.</em></h1>
