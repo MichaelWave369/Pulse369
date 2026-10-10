@@ -14,6 +14,7 @@ export default defineConfig({
       input: {
         main: fileURLToPath(new URL('index.html', import.meta.url)),
         quest: fileURLToPath(new URL('quest.html', import.meta.url)),
+        music: fileURLToPath(new URL('music.html', import.meta.url)),
       },
     },
   },
