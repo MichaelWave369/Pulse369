@@ -51,5 +51,7 @@ jobs:
         run: node --test portal/dance-core.test.mjs
       - name: Choreographer class timeline, audio guard and privacy tests
         run: node --test portal/dance-class.test.mjs
+      - name: Choreography Creator chart import, mirror, timeline and privacy tests
+        run: node --test portal/choreo-model.test.mjs
       - name: Worker integration checks
         run: node scripts/verify-studio.mjs
