@@ -57,5 +57,7 @@ jobs:
         run: node --test portal/motion-coach.test.mjs
       - name: Dance Director style, boundary, expression and phrase cues tests
         run: node --test portal/dance-director.test.mjs
+      - name: Dance Academy lessons, safe seated cues, and R2 export privacy tests
+        run: node --test portal/dance-academy.test.mjs
       - name: Worker integration checks
         run: node scripts/verify-studio.mjs
