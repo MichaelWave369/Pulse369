@@ -1,0 +1,44 @@
+.workout-shell{background:radial-gradient(ellipse 680px 460px at 90% 0%,#65407555,transparent),radial-gradient(ellipse 700px 480px at 0% 64%,#206a6255,transparent),#08111f}
+.workout-actions-header{display:flex;gap:11px;flex-wrap:wrap;margin:24px 0 25px}
+.workout-actions-header button,.workout-import{padding:15px 20px;border:1px solid #c7f876;background:#c7f876;color:#10232b;font-size:11px;font-weight:900;letter-spacing:.07em;cursor:pointer;display:inline-flex;align-items:center;text-align:center}
+.workout-import{background:#182e48;color:#f1faff;border-color:#5e84a1}
+.workout-import input{display:none}
+.workout-import:focus-within{outline:3px solid #fff;outline-offset:3px}
+.workout-settings{display:grid;grid-template-columns:1.4fr 1fr;gap:12px}
+.workout-settings label{display:flex;flex-direction:column;gap:8px;color:#c7f876;font-size:10px;font-weight:900;letter-spacing:.07em}
+.workout-settings input,.workout-settings select{width:100%;min-width:0;background:#0d192d;border:1px solid #65829f;color:#f6faff;padding:12px;font-size:13px;letter-spacing:0}
+.workout-playlist{display:flex;flex-direction:column;gap:9px;margin:15px 0}
+.workout-playlist-row{display:grid;grid-template-columns:minmax(145px,1.5fr) minmax(110px,1fr) repeat(3,35px);gap:6px;border:1px solid #496682;background:#0c1b2f;padding:7px;align-items:center}
+.workout-playlist-row.active{border-color:#c7f876;background:#1d353c}
+.workout-select-row{background:transparent;border:0;color:#ebf7ff;display:flex;align-items:center;gap:12px;text-align:left;cursor:pointer;min-width:0;font:inherit}
+.workout-select-row span{font-weight:900;font-size:12px;color:#c7f876}
+.workout-select-row strong{font-size:12px;line-height:1.35;overflow-wrap:anywhere}
+.workout-playlist-row select{width:100%;max-width:100%;min-width:0;background:#112944;color:#e3f4ff;border:1px solid #53738d;padding:9px 3px;font-size:10px}
+.workout-playlist-row>button:not(.workout-select-row){background:#21334b;border:1px solid #5b7890;color:#ebf8ff;font-size:16px;font-weight:900;cursor:pointer;min-height:35px}
+.workout-playlist-add{display:flex;gap:9px;flex-wrap:wrap}
+.workout-playlist-add button{background:#1c3048;color:#f1faff;border:1px solid #577890;padding:12px 15px;font-size:10px;letter-spacing:.04em;font-weight:900;cursor:pointer}
+.workout-song{padding:14px;border:1px solid #3e6880;background:#101e35}
+.workout-song label{display:flex;flex-direction:column;gap:12px;font-size:11px;color:#c7f876;font-weight:900}
+.workout-song input{width:100%;max-width:100%;background:#0b1a2c;border:1px solid #537790;padding:12px;color:#e7f3ff}
+.workout-song p{font-size:12px;line-height:1.5;color:#ccdfec}
+.workout-song .workout-audio-error{padding:11px;color:#ffc8ab;background:#5b342c33;border-left:3px solid #ffc8ab}
+.workout-reduced{margin:19px 0;display:flex;gap:10px;align-items:center;font-weight:800;font-size:11px;color:#e4f4ff}
+.workout-reduced input{accent-color:#c7f876;width:20px;height:20px}
+.workout-stage{position:sticky;top:8px;max-height:calc(100vh - 16px);overflow-y:auto;scrollbar-color:#59798f #14283c}
+.workout-floor{height:290px}
+.workout-counter{display:flex;align-items:center;justify-content:space-between;gap:15px;margin:14px 0;color:#e8f4fd}
+.workout-counter span{font-weight:900;color:#accbdf;font-size:10px;letter-spacing:.08em}
+.workout-counter strong{font-size:22px;font-variant-numeric:tabular-nums}
+.workout-up-next{border-left:4px solid #ffa875;background:#202e44;padding:12px 15px;display:flex;flex-direction:column;gap:6px}
+.workout-up-next small{font-weight:900;letter-spacing:.08em;color:#ffa875;font-size:10px}
+.workout-up-next strong{font-size:15px;color:#f0f8ff}
+.workout-timeline{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;max-height:255px;overflow-y:auto}
+.workout-timeline-segment{display:grid;grid-template-columns:26px minmax(0,1fr);gap:6px;align-items:center;min-height:60px;border:1px solid #496682;background:#0d1b30;padding:10px}
+.workout-timeline-segment.current{border-color:#c7f876;background:#234139}
+.workout-timeline-segment.recovery{border-color:#bd8f78;background:#2c2e3d}
+.workout-timeline-segment span{color:#c7f876;font-size:10px;font-weight:900;grid-row:span 2}
+.workout-timeline-segment strong{font-size:11px;color:#eaf5ff;line-height:1.3}
+.workout-timeline-segment small{font-size:10px;color:#aac9dd}
+@media(max-width:1100px){.workout-stage{position:static;max-height:none;overflow:visible}}
+@media(max-width:600px){.workout-settings{grid-template-columns:1fr}.workout-playlist-row{grid-template-columns:repeat(3,35px) minmax(0,1fr)}.workout-select-row{grid-column:span 4}.workout-playlist-row select{grid-column:span 1;grid-row:2}.workout-playlist-row>button:not(.workout-select-row){grid-row:2}.workout-timeline{grid-template-columns:1fr}}
+@media(prefers-reduced-motion:reduce){.workout-floor .academy-foot{transition:none}}
