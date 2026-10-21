@@ -161,7 +161,7 @@ function DanceLab() {
       running.current={session};
       setPhase('active');
       setStatus('VR dance drill running. Follow the colored hand rings on each count. Trigger or headset menu exits.');
-      const head=new THREE.Vector3(),right=new THREE.Vector3(),forward=new THREE.Vector3(),pose={};
+      const head=new THREE.Vector3(),right=new THREE.Vector3(),forward=new THREE.Vector3();
       const period=60000/bpm;
       renderer.setAnimationLoop(time=>{
         if(ended)return;
@@ -180,7 +180,7 @@ function DanceLab() {
           return {side:t.side,x:v.x,y:v.y,z:v.z};
         });
         for(let i=0;i<2;i++){
-          const t=targetPositions[i],mesh=targets[i];
+          const t=targetPositions.find(p=>p.side===(i===0?'left':'right')),mesh=targets[i];
           mesh.visible=!!t;
           if(t){mesh.position.set(t.x,t.y,t.z);mesh.lookAt(head);}
         }
