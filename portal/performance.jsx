@@ -8,6 +8,7 @@ import {
   replaceSource,changeScene,buildShow,sampleShow,performanceTrackError,showReceipt
 } from './dance-performance.mjs';
 import MotionCoachFigure from './motion-coach-figure.jsx';
+import {BUILTIN_PRESETS,builtInPreset,capturePreset,applyPreset,parsePreset,encodePreset,cueSheetRows,cueSheetText,rehearsalStart,MAX_PRESET_BYTES} from './dance-show-runner.mjs';
 import './styles.css';
 import './quest-lab.css';
 import './performance.css';
@@ -15,7 +16,7 @@ import './performance.css';
 const DEMO='Performance ready. Import an authored chart or workout, assign scenes, and rehearse.';
 const pad=n=>String(n).padStart(2,'0');
 const fileDownload=(name,content)=>{
-  const url=URL.createObjectURL(new Blob([content],{type:'application/json'}));
+  const url=URL.createObjectURL(new Blob([content],{type:name.endsWith('.txt')?'text/plain':'application/json'}));
   const a=document.createElement('a');
   a.href=url;a.download=name;document.body.appendChild(a);a.click();a.remove();
   setTimeout(()=>URL.revokeObjectURL(url),1000);
@@ -35,6 +36,8 @@ const click=(ctx,downbeat)=>{
 function Performance(){
   const [show,setShow]=useState(starterShow);
   const [selected,setSelected]=useState(0);
+  const [presetChoice,setPresetChoice]=useState('royal');
+  const [paused,setPaused]=useState(false);
   const [theater,setTheater]=useState(false);
   const [mode,setMode]=useState('guide');
   const [audioStatus,setAudioStatus]=useState('No local music loaded. Synthesized guide is ready.');
@@ -47,6 +50,7 @@ function Performance(){
   const audio=useRef(null),token=useRef(0),run=useRef(null),showRef=useRef(show);
   showRef.current=show;
   const plan=buildShow(show);
+  const cueRows=cueSheetRows(show);
   const segment=plan.segments[Math.min(selected,plan.segments.length-1)];
   const current=playing&&liveFrame?liveFrame:sampleShow(plan,segment.start);
   const scene=current?.scene;
@@ -84,6 +88,25 @@ function Performance(){
       setSelected(0);
     }catch(err){setStatus('Import rejected: '+err.message);}
   }
+  async function importPreset(event){
+    const file=event.target.files?.[0];event.target.value='';
+    if(!file||run.current)return;
+    if(file.size>MAX_PRESET_BYTES){setStatus('Preset file exceeds 8 KiB.');return;}
+    try{
+      const content=await file.text();
+      if(run.current)return;
+      const preset=parsePreset(content);
+      update(old=>applyPreset(old,preset),'Applied preset '+preset.name+' without changing source choreography.');
+    }catch(err){setStatus('Preset rejected: '+err.message);}
+  }
+  function savePreset(){
+    try{
+      const preset=capturePreset(showRef.current,showRef.current.title.slice(0,44)+' STAGE');
+      fileDownload('pulse369-stage-preset.json',encodePreset(preset));
+      setStatus('Saved a portable stage preset (appearance only, no choreography or audio).');
+    }catch(err){setStatus('Could not save stage preset: '+err.message);}
+  }
+  async function togglePause(){await run.current?.pause?.();}
   async function loadSong(event){
     const t=++token.current;
     audio.current=null;setReady(false);
@@ -102,27 +125,38 @@ function Performance(){
     }catch(err){if(t===token.current)setAudioStatus('Audio rejected: '+err.message);}
     finally{if(ctx&&ctx.state!=='closed')void ctx.close().catch(()=>{});}
   }
-  async function start(){
+  async function start(fromSelected=false){
     if(run.current||error)return;
     const program=buildShow(showRef.current),sound=mode;
+    const cueStart=rehearsalStart(program.show,fromSelected?selected:0,sound);
     const Ctx=window.AudioContext||window.webkitAudioContext;
     if(!Ctx){setStatus('Web Audio is not supported. You can still preview each scene manually.');return;}
-    let ctx=null,source=null,raf=0,ended=false,prior=-1,lastClick=-1,priorDraw=0,completed=0;
+    let ctx=null,source=null,raf=0,ended=false,prior=-1,lastClick=-1,priorDraw=0,completed=0,pauseBusy=false;
     const stop=finished=>{
       if(ended)return;ended=true;cancelAnimationFrame(raf);
       try{source?.stop();}catch{}
       try{source?.disconnect();}catch{}
       if(ctx&&ctx.state!=='closed')void ctx.close().catch(()=>{});
-      run.current=null;setPlaying(false);setLiveFrame(null);setShown(completed);
+      run.current=null;setPlaying(false);setPaused(false);setLiveFrame(null);setShown(cueStart.count+completed);
       setReceipt(showReceipt(program,completed,sound));
       setStatus(finished?'The staged show finished. This was a screen demonstration only.':'Rehearsal stopped; local playback resources were released.');
     };
-    run.current={stop};setPlaying(true);setLiveFrame(sampleShow(program,0));setShown(0);setReceipt(null);
+    const pause=async()=>{
+      if(ended||!ctx||pauseBusy)return;
+      pauseBusy=true;
+      try{
+        if(ctx.state==='running'){await ctx.suspend();if(!ended)setPaused(true);}
+        else if(ctx.state==='suspended'){await ctx.resume();if(!ended)setPaused(false);}
+      }catch(err){if(!ended)setStatus('Pause control unavailable: '+(err?.message||'Audio system error'));}
+      finally{pauseBusy=false;}
+    };
+    run.current={stop,pause};setPlaying(true);setPaused(false);
+    setLiveFrame(sampleShow(program,cueStart.count));setShown(cueStart.count);setReceipt(null);
     try{
       ctx=new Ctx({latencyHint:'interactive'});await ctx.resume();
       if(ended)return;
       const startAt=ctx.currentTime+1.3;
-      const anchor=startAt+(sound==='local'?program.offsetMs/1000:0);
+      const anchor=startAt+cueStart.leadInSeconds-cueStart.count*cueStart.beatSeconds;
       if(sound==='local'){
         const buffer=audio.current;
         if(!buffer)throw new Error('The local audio was cleared.');
@@ -130,17 +164,17 @@ function Performance(){
         if(invalid)throw new Error(invalid);
         source=ctx.createBufferSource();source.buffer=buffer;
         const gain=ctx.createGain();gain.gain.value=.48;
-        source.connect(gain);gain.connect(ctx.destination);source.start(startAt);
+        source.connect(gain);gain.connect(ctx.destination);source.start(startAt,cueStart.audioSeconds);
       }
-      setStatus('Show is playing. Lighting and instructor are scripted visual cues; no camera or user sensing.');
+      setStatus('Running from cue '+(cueStart.segmentIndex+1)+'. Pause/resume shares the audio clock; no motion or camera sensing.');
       const frame=()=>{
         if(ended)return;
         const time=ctx.currentTime,beat=(time-anchor)*program.bpm/60;
         const count=Math.floor(beat+1e-8);
-        if(count>=program.totalCounts){completed=program.totalCounts;stop(true);return;}
+        if(count>=program.totalCounts){completed=program.totalCounts-cueStart.count;stop(true);return;}
         if(count>=0){
-          completed=Math.max(completed,count+1);
-          if(count!==prior){prior=count;setShown(completed);}
+          completed=Math.max(completed,count-cueStart.count+1);
+          if(count!==prior){prior=count;setShown(count+1);}
           if(time-priorDraw>.034){
             const sample=sampleShow(program,beat);
             if(sample)setLiveFrame(sample);
