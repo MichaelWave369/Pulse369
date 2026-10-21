@@ -1,4 +1,5 @@
 import { DANCE_STYLES, danceMove } from './dance-core.mjs';
+import { loopingCue } from './choreo-model.mjs';
 
 // Authored progression, not a health or dance-skill assessment. Timings are
 // derived from the user-selected MANUAL tempo, not auto beat-detected audio.
@@ -45,7 +46,7 @@ const warmupMoves = [
 ];
 const cooldownMoves = warmupMoves.map((m,i)=>({...m, name:['BREATHE','SOFT LEFT','SOFT RIGHT','OPEN','RESET','RELEASE','RELEASE','FINISH'][i],coach:'Move gently. Let your breathing return to normal.',hands:m.hands}));
 
-export function classCue(plan, style, index) {
+export function classCue(plan, style, index, customChart = null) {
   if (!plan || !Object.hasOwn(DANCE_STYLES,style) || !Number.isInteger(index) || index<0 || index>=plan.totalBeats) return null;
   const block=plan.blocks.find(x=>index>=x.start && index<x.end);
   if(!block)return null;
@@ -55,8 +56,15 @@ export function classCue(plan, style, index) {
   const learnStage=block.id==='learn' ? (Math.floor(local/8)%4) : -1;
   const stepIndex=learnStage===0 ? cycle%4 :
     learnStage===1 ? 4+cycle%4 : cycle;
+  // Screen and Quest share the same portable R2 chart when the user imports one.
+  // Teach the first phrase in LEARN, then play the complete repeating chart
+  // during REHEARSE and DANCE. WARM UP/COOL DOWN remain gentle stock motions.
+  const custom=customChart && !['warmup','cooldown'].includes(block.id)
+    ? loopingCue(customChart,block.id==='learn'?stepIndex:local)
+    : null;
   const move=block.id==='warmup' ? warmupMoves[cycle] :
-    block.id==='cooldown' ? cooldownMoves[cycle] : danceMove(style,stepIndex);
+    block.id==='cooldown' ? cooldownMoves[cycle] :
+    custom ? custom : danceMove(style,stepIndex);
   const coach=block.id==='learn' && learnStage===0
     ? ('FIRST FOUR · '+move.coach) :
     block.id==='learn' && learnStage===1
@@ -69,6 +77,7 @@ export function classCue(plan, style, index) {
     phase:block.id,phaseName:block.name,phaseHint:block.hint,
     phaseProgress:(local+1)/block.beats,scoreEligible:block.scored,
     name:move.name,coach,hands:move.hands,
+    chartPhrase:custom?.phraseName||null,
     upcoming:index+1<plan.totalBeats ? plan.blocks.find(x=>index+1>=x.start&&index+1<x.end)?.name : null
   };
 }
@@ -87,7 +96,7 @@ export function validateClassTrack(durationSeconds, plan, offsetMs) {
   return null;
 }
 
-export function classReceipt({style,plan,posture,completedBeats,eligibleBeats,matchedCues,musicMode}) {
+export function classReceipt({style,plan,posture,completedBeats,eligibleBeats,matchedCues,musicMode,routineSource}) {
   const total=plan?.totalBeats||0;
   const offered=Number.isInteger(completedBeats)?Math.max(0,Math.min(total,completedBeats)):0;
   const eligible=Number.isInteger(eligibleBeats)?Math.max(0,Math.min(offered,eligibleBeats)):0;
@@ -95,7 +104,8 @@ export function classReceipt({style,plan,posture,completedBeats,eligibleBeats,ma
   return {
     schema:'pulse369.danceflow-class.v1',
     provenance:'LOCAL_UNVERIFIED',
-    style:Object.hasOwn(DANCE_STYLES,style)?style:'unknown',
+    style:routineSource==='imported'?'custom-chart':Object.hasOwn(DANCE_STYLES,style)?style:'unknown',
+    routineMode:routineSource==='imported'?'imported-local-chart':'built-in-style',
     manualBpm:plan?.bpm||null,selectedMinutes:plan?.minutes||null,
     posture:posture==='seated'?'seated':'standing',
     musicMode:musicMode==='local'?'local-file-not-uploaded':'synth-guide',
