@@ -312,8 +312,10 @@ function Choreographer() {
       });
     }catch(err){
       setStatus('VR class could not start: '+(err?.message||'Unknown error'));
-      if(session){try{await session.end();}catch{stop(false);}}
-      else stop(false);
+      if(session)try{await session.end();}catch{ /* Fall through to cleanup. */ }
+      // A setup failure can happen before the session-end listener was attached.
+      // Always cleanup explicitly; stop is idempotent if end already fired.
+      stop(false);
     }
   }
 
