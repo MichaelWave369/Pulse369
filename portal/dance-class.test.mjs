@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { CLASS_MINUTES, createDanceClass, classCue, classPosition, validateClassTrack, classReceipt } from './dance-class.mjs';
+import { CLASS_MINUTES, createDanceClass, classCue, classPosition, validateClassTrack, classReceipt, classHitAt } from './dance-class.mjs';
 
 test('class timings partition into distinct phases with precise boundaries',()=>{
   for(const bpm of [96,112,128]){
@@ -48,4 +48,24 @@ test('receipt includes allowlisted aggregate only',()=>{
   assert.equal(receipt.provenance,'LOCAL_UNVERIFIED');
   assert.equal(receipt.musicMode,'local-file-not-uploaded');
   for(const key of ['name','rawPose','filename','calories','heartRate','audio','timestamp'])assert.ok(!(key in receipt));
+});
+
+test('real half-phrase breakdown occurs before full eight-count',()=>{
+  const p=createDanceClass(112,3);
+  const learn=p.blocks.find(x=>x.id==='learn');
+  const first=Array.from({length:8},(_,i)=>classCue(p,'groove',learn.start+i).name);
+  const second=Array.from({length:8},(_,i)=>classCue(p,'groove',learn.start+8+i).name);
+  assert.deepEqual(first.slice(0,4),first.slice(4));
+  assert.deepEqual(second.slice(0,4),second.slice(4));
+  assert.match(classCue(p,'groove',learn.start).coach,/FIRST FOUR/);
+  assert.match(classCue(p,'groove',learn.start+8).coach,/SECOND FOUR/);
+  assert.match(classCue(p,'groove',learn.start+16).coach,/PUT IT TOGETHER/);
+});
+
+test('music-clock cue checks are bounded and reject off-beat hits',()=>{
+  assert.equal(classHitAt(1.5,2,112,600),null);
+  assert.deepEqual(classHitAt(2,2,112,600),{index:0,errorMs:0});
+  assert.equal(classHitAt(2.35,2,112,600),null);
+  assert.equal(classHitAt(2+600*60/112,2,112,600),null);
+  assert.equal(classHitAt(NaN,2,112,600),null);
 });
