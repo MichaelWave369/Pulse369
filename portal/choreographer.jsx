@@ -4,7 +4,7 @@ import * as THREE from 'three';
 import { DANCE_STYLES } from './dance-core.mjs';
 import { preflightLocalAudio } from './quest-local-music.mjs';
 import { MAX_CHART_BYTES, parseChart, totalCounts } from './choreo-model.mjs';
-import { authoredPose, sampleCoachPose } from './motion-coach.mjs';
+import { sampleDirectedPose, directionAt } from './dance-director.mjs';
 import { createCoachRig, updateCoachRig } from './motion-coach-three.mjs';
 import MotionCoachFigure from './motion-coach-figure.jsx';
 import { CLASS_MINUTES, createDanceClass, classCue, classPosition, classHitAt, validateClassTrack, classReceipt } from './dance-class.mjs';
@@ -66,6 +66,7 @@ function Choreographer() {
   const [reading,setReading]=useState(IDLE);
   const [coachPose,setCoachPose]=useState(null);
   const [reducedMotion,setReducedMotion]=useState(false);
+  const [expression,setExpression]=useState('showtime');
   const [receipt,setReceipt]=useState(null);
   const [customChart,setCustomChart]=useState(null);
   const [chartStatus,setChartStatus]=useState('Use the built-in dance routine, or import one exported from DanceFlow R2.');
@@ -173,8 +174,8 @@ function Choreographer() {
         const index=classPosition(clock,anchor,bpm,plan.totalBeats);
         if(index>=plan.totalBeats){counters.offered=plan.totalBeats;stop(true);return;}
         if(index>=0 && performance.now()-lastVisual>=32){
-          setCoachPose(sampleCoachPose(i=>classCue(plan,style,i,customChart),
-            (clock-anchor)*bpm/60,{reducedMotion}));
+          setCoachPose(sampleDirectedPose(i=>classCue(plan,style,i,customChart),
+            (clock-anchor)*bpm/60,{reducedMotion,expression}));
           lastVisual=performance.now();
         }
         if(index>=0 && index!==lastIndex){
@@ -287,8 +288,8 @@ function Choreographer() {
         instructor.group.position.y=posture==='seated'
           ? Math.max(.79,head.y-.27) : Math.max(.85,head.y-.65);
         instructor.group.rotation.y=Math.atan2(forward.x,forward.z)+Math.PI;
-        const animatedPose=sampleCoachPose(i=>classCue(plan,style,i,customChart),
-          (clock-anchor)*bpm/60,{reducedMotion});
+        const animatedPose=sampleDirectedPose(i=>classCue(plan,style,i,customChart),
+          (clock-anchor)*bpm/60,{reducedMotion,expression});
         updateCoachRig(instructor,animatedPose,THREE);
         if(index>=0 && performance.now()-lastVisual>=90){
           setCoachPose(animatedPose);
@@ -348,6 +349,7 @@ function Choreographer() {
 
   const minutesRemaining=(reading.secondsLeft/60).toFixed(1);
   const chosen=DANCE_STYLES[style];
+  const direction=directionAt(i=>classCue(plan,style,i,customChart),Math.max(0,(reading.count||1)-1));
   return <div className="quest-shell choreo-shell">
     <header className="quest-header">
       <a className="logo" href="index.html"><span className="sigil">ϕ</span>PULSE <b>369</b></a>
@@ -388,6 +390,11 @@ function Choreographer() {
             <label><input type="radio" checked={posture==='standing'} onChange={()=>setPosture('standing')}/> Standing in place</label>
             <label><input type="radio" checked={posture==='seated'} onChange={()=>setPosture('seated')}/> Seated arm movement</label>
           </fieldset>
+          <div className="director-intensity" role="group" aria-label="Instructor expression">
+            <span>DIRECTOR EXPRESSION</span>
+            <button disabled={busy} className={expression==='subtle'?'selected':''} onClick={()=>setExpression('subtle')}>SUBTLE</button>
+            <button disabled={busy} className={expression==='showtime'?'selected':''} onClick={()=>setExpression('showtime')}>SHOWTIME</button>
+          </div>
           <label className="choreo-calm"><input type="checkbox" checked={reducedMotion} disabled={busy}
              onChange={e=>setReducedMotion(e.target.checked)}/>
             REDUCED MOTION · STATIC INSTRUCTOR CUES / NO SWAY
@@ -419,6 +426,7 @@ function Choreographer() {
         </section>
         <section className="quest-card choreo-instructor-card">
           <h2>THE INSTRUCTOR</h2>
+          <div className="director-banner"><strong>{direction?.styleName||'EASY FLOW'}</strong><span>{direction?.headline||'GET READY'}</span></div>
           <div className="choreo-live">
             <div className="choreo-count"><span>{reading.phaseName}</span><strong>{reading.beat||'·'}</strong><small>COUNT / 8</small></div>
             <div className="choreo-move">
@@ -427,9 +435,13 @@ function Choreographer() {
               <p>{reading.coach}</p>
             </div>
           </div>
+          {reading.count>0&&direction?.upcoming&&<div className="director-up-next" role="status">
+            <span>COMING UP IN {direction.upcoming.inCounts} COUNT{direction.upcoming.inCounts!==1?'S':''}</span>
+            <strong>{direction.upcoming.label} · {direction.upcoming.name}</strong>
+          </div>}
           <div className="choreo-figure">
             <MotionCoachFigure
-              pose={coachPose||authoredPose(classCue(plan,style,0,customChart),0)}
+              pose={coachPose||sampleDirectedPose(i=>classCue(plan,style,i,customChart),0,{reducedMotion,expression})}
               reducedMotion={reducedMotion}
               label="Procedural dance instructor teaching authored full-figure motions, not tracking a person"/>
           </div>
