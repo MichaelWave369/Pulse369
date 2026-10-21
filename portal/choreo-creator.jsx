@@ -2,6 +2,8 @@ import React, { useEffect, useRef, useState } from 'react';
 import { createRoot } from 'react-dom/client';
 import { DANCE_STYLES } from './dance-core.mjs';
 import { preflightLocalAudio } from './quest-local-music.mjs';
+import { authoredPose, sampleCoachPose } from './motion-coach.mjs';
+import MotionCoachFigure from './motion-coach-figure.jsx';
 import {
   MAX_CHART_BYTES, MAX_PHRASES, STYLES, starterChart,normalizeChart,
   encodeChart,parseChart,totalCounts,cueForCount,replaceStep,replacePhrase,
@@ -53,6 +55,8 @@ function Creator(){
   const [trackStatus,setTrackStatus]=useState('No local audio selected.');
   const [playing,setPlaying]=useState(false);
   const [playingIndex,setPlayingIndex]=useState(-1);
+  const [coachPose,setCoachPose]=useState(null);
+  const [reducedMotion,setReducedMotion]=useState(false);
   const [lastCount,setLastCount]=useState(0);
   const [undoCount,setUndoCount]=useState(0);
   const audio=useRef(null),audioToken=useRef(0),run=useRef(null),history=useRef([]);
@@ -65,6 +69,7 @@ function Creator(){
   const selectedAbsolute=chart.phrases.slice(0,phraseIndex).reduce((sum,p)=>sum+p.repeat*8,0)+beatIndex;
   const activeIndex=playingIndex>=0?playingIndex:selectedAbsolute;
   const cue=cueForCount(chart,activeIndex);
+  const displayedPose=playing&&coachPose?coachPose:authoredPose(cue,0);
   const mediaError=mode==='local'?(!trackReady?'Choose and decode a local MP3/WAV first.':trackLengthError(chart,audio.current?.duration)):null;
   const editingDisabled=playing;
 
@@ -166,7 +171,7 @@ function Creator(){
     const current=chartRef.current,counts=totalCounts(current),music=mode;
     const Ctx=window.AudioContext||window.webkitAudioContext;
     if(!Ctx){setStatus('Web Audio is unavailable in this browser.');return;}
-    let ctx=null,source=null,raf=0,stopped=false,index=-1,lastBeep=-1,displayed=0;
+    let ctx=null,source=null,raf=0,stopped=false,index=-1,lastBeep=-1,displayed=0,lastVisual=0;
     const end=(finished=false)=>{
       if(stopped)return;stopped=true;
       cancelAnimationFrame(raf);
@@ -174,11 +179,11 @@ function Creator(){
       try{source?.disconnect();}catch{}
       if(ctx)void ctx.close().catch(()=>{});
       run.current=null;
-      setPlaying(false);setPlayingIndex(-1);setLastCount(displayed);
+      setPlaying(false);setPlayingIndex(-1);setLastCount(displayed);setCoachPose(null);
       setStatus(finished?'Routine preview complete. Your choreography remains here until the page is closed.':'Preview stopped; audio released.');
     };
     run.current={stop:end};
-    setPlaying(true);setPlayingIndex(-1);setLastCount(0);
+    setPlaying(true);setPlayingIndex(-1);setLastCount(0);setCoachPose(authoredPose(cueForCount(current,0),0));
     try{
       // Start Web Audio within direct user activation. The audio clock drives
       // both the optional song and the authored visual count.
@@ -205,6 +210,10 @@ function Creator(){
         const currentCount=Math.floor(elapsed+1e-8);
         if(currentCount>=counts){displayed=counts;end(true);return;}
         if(currentCount>=0){
+          if(performance.now()-lastVisual>=32){
+            setCoachPose(sampleCoachPose(i=>cueForCount(current,i),elapsed,{reducedMotion}));
+            lastVisual=performance.now();
+          }
           displayed=Math.max(displayed,currentCount+1);
           if(index!==currentCount){index=currentCount;setPlayingIndex(index);}
           if(music==='guide'&&lastBeep!==currentCount){
@@ -309,12 +318,9 @@ function Creator(){
           <div className="creator-panel-head"><h2>04 / REHEARSAL STAGE</h2><span>SCREEN DEMONSTRATION · NO BODY SCORING</span></div>
           <div className="creator-stage">
             <div className="creator-stage-spot"/>
-            <div className="creator-avatar" aria-label="Stylized instructor representing authored hand targets">
-              <div className="creator-avatar-head"/>
-              <div className="creator-avatar-body"/>
-              {cue?.hands.map(hand=><div key={hand.side} className={'creator-avatar-hand '+hand.side}
-                style={{left:(50+hand.x*68)+'%',top:(55-hand.y*82)+'%'}}/>)}
-              <div className="creator-avatar-label">SIMULATED HAND CUES · {cue?.mirror?'MIRRORED':'STANDARD'}</div>
+            <div className="creator-motion-stage">
+              <MotionCoachFigure pose={displayedPose} reducedMotion={reducedMotion}
+                label="Animated, authored choreography instructor with neon arms and stationary illustrated feet"/>
             </div>
             <div className="creator-count"><span>COUNT</span><strong>{cue?.beat||'·'}</strong><small>OF EIGHT</small></div>
           </div>
@@ -326,6 +332,10 @@ function Creator(){
           <div className="creator-progress" role="progressbar" aria-valuenow={Math.round((Math.max(0,playingIndex+1)/total)*100)} aria-valuemin={0} aria-valuemax={100}>
             <div style={{width:(Math.max(0,playingIndex+1)/total*100)+'%'}}/>
           </div>
+          <label className="creator-calm"><input type="checkbox" checked={reducedMotion} disabled={playing}
+              onChange={e=>setReducedMotion(e.target.checked)}/>
+            REDUCED MOTION · HOLD EACH COUNT WITHOUT SWAY
+          </label>
           <fieldset className="creator-audio-select" disabled={playing}><legend>AUDIO SOURCE</legend>
             <label><input type="radio" checked={mode==='guide'} onChange={()=>setMode('guide')}/> SYNTH COUNT GUIDE</label>
             <label><input type="radio" checked={mode==='local'} onChange={()=>setMode('local')}/> MY LOCAL MP3/WAV</label>
