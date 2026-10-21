@@ -2,7 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { createRoot } from 'react-dom/client';
 import { DANCE_STYLES } from './dance-core.mjs';
 import { preflightLocalAudio } from './quest-local-music.mjs';
-import { authoredPose, sampleCoachPose } from './motion-coach.mjs';
+import { sampleDirectedPose, directionAt } from './dance-director.mjs';
 import MotionCoachFigure from './motion-coach-figure.jsx';
 import {
   MAX_CHART_BYTES, MAX_PHRASES, STYLES, starterChart,normalizeChart,
@@ -57,6 +57,7 @@ function Creator(){
   const [playingIndex,setPlayingIndex]=useState(-1);
   const [coachPose,setCoachPose]=useState(null);
   const [reducedMotion,setReducedMotion]=useState(false);
+  const [expression,setExpression]=useState('showtime');
   const [lastCount,setLastCount]=useState(0);
   const [undoCount,setUndoCount]=useState(0);
   const audio=useRef(null),audioToken=useRef(0),run=useRef(null),history=useRef([]);
@@ -69,7 +70,8 @@ function Creator(){
   const selectedAbsolute=chart.phrases.slice(0,phraseIndex).reduce((sum,p)=>sum+p.repeat*8,0)+beatIndex;
   const activeIndex=playingIndex>=0?playingIndex:selectedAbsolute;
   const cue=cueForCount(chart,activeIndex);
-  const displayedPose=playing&&coachPose?coachPose:authoredPose(cue,0);
+  const displayedPose=playing&&coachPose?coachPose:sampleDirectedPose(i=>cueForCount(chart,i),activeIndex,{reducedMotion,expression});
+  const director=directionAt(i=>cueForCount(chart,i),activeIndex);
   const mediaError=mode==='local'?(!trackReady?'Choose and decode a local MP3/WAV first.':trackLengthError(chart,audio.current?.duration)):null;
   const editingDisabled=playing;
 
@@ -183,7 +185,7 @@ function Creator(){
       setStatus(finished?'Routine preview complete. Your choreography remains here until the page is closed.':'Preview stopped; audio released.');
     };
     run.current={stop:end};
-    setPlaying(true);setPlayingIndex(-1);setLastCount(0);setCoachPose(authoredPose(cueForCount(current,0),0));
+    setPlaying(true);setPlayingIndex(-1);setLastCount(0);setCoachPose(sampleDirectedPose(i=>cueForCount(current,i),0,{reducedMotion,expression}));
     try{
       // Start Web Audio within direct user activation. The audio clock drives
       // both the optional song and the authored visual count.
@@ -211,7 +213,7 @@ function Creator(){
         if(currentCount>=counts){displayed=counts;end(true);return;}
         if(currentCount>=0){
           if(performance.now()-lastVisual>=32){
-            setCoachPose(sampleCoachPose(i=>cueForCount(current,i),elapsed,{reducedMotion}));
+            setCoachPose(sampleDirectedPose(i=>cueForCount(current,i),elapsed,{reducedMotion,expression}));
             lastVisual=performance.now();
           }
           displayed=Math.max(displayed,currentCount+1);
@@ -316,6 +318,10 @@ function Creator(){
 
         <section className="creator-panel creator-stage-panel">
           <div className="creator-panel-head"><h2>04 / REHEARSAL STAGE</h2><span>SCREEN DEMONSTRATION · NO BODY SCORING</span></div>
+          <div className="director-banner" aria-live="off">
+            <strong>{director?.styleName||'DANCE DIRECTOR'}</strong>
+            <span>{director?.headline||'READY TO DANCE'}</span>
+          </div>
           <div className="creator-stage">
             <div className="creator-stage-spot"/>
             <div className="creator-motion-stage">
@@ -324,6 +330,10 @@ function Creator(){
             </div>
             <div className="creator-count"><span>COUNT</span><strong>{cue?.beat||'·'}</strong><small>OF EIGHT</small></div>
           </div>
+          {director?.upcoming&&playing&&<div className="director-up-next" role="status">
+            <span>COMING UP IN {director.upcoming.inCounts} COUNT{director.upcoming.inCounts!==1?'S':''}</span>
+            <strong>{director.upcoming.label} · {director.upcoming.name}</strong>
+          </div>}
           <div className="creator-current">
             <span>PHRASE {(cue?.phraseIndex??0)+1} · {cue?.phraseName}</span>
             <strong>{cue?.name||'READY'}</strong>
@@ -331,6 +341,11 @@ function Creator(){
           </div>
           <div className="creator-progress" role="progressbar" aria-valuenow={Math.round((Math.max(0,playingIndex+1)/total)*100)} aria-valuemin={0} aria-valuemax={100}>
             <div style={{width:(Math.max(0,playingIndex+1)/total*100)+'%'}}/>
+          </div>
+          <div className="director-intensity" role="group" aria-label="Instructor expression">
+            <span>DIRECTOR EXPRESSION</span>
+            <button disabled={playing} className={expression==='subtle'?'selected':''} onClick={()=>setExpression('subtle')}>SUBTLE</button>
+            <button disabled={playing} className={expression==='showtime'?'selected':''} onClick={()=>setExpression('showtime')}>SHOWTIME</button>
           </div>
           <label className="creator-calm"><input type="checkbox" checked={reducedMotion} disabled={playing}
               onChange={e=>setReducedMotion(e.target.checked)}/>

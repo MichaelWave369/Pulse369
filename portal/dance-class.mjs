@@ -77,6 +77,7 @@ export function classCue(plan, style, index, customChart = null) {
     phase:block.id,phaseName:block.name,phaseHint:block.hint,
     phaseProgress:(local+1)/block.beats,scoreEligible:block.scored,
     name:move.name,coach,hands:move.hands,
+    style:['warmup','cooldown'].includes(block.id)?'gentle':(custom?.style||style),
     chartPhrase:custom?.phraseName||null,
     upcoming:index+1<plan.totalBeats ? plan.blocks.find(x=>index+1>=x.start&&index+1<x.end)?.name : null
   };
