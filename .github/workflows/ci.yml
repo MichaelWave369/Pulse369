@@ -53,5 +53,7 @@ jobs:
         run: node --test portal/dance-class.test.mjs
       - name: Choreography Creator chart import, mirror, timeline and privacy tests
         run: node --test portal/choreo-model.test.mjs
+      - name: Motion Coach interpolation, reduced-motion and pose projection tests
+        run: node --test portal/motion-coach.test.mjs
       - name: Worker integration checks
         run: node scripts/verify-studio.mjs
