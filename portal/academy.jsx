@@ -110,7 +110,7 @@ function Academy(){
   }
   return <div className="academy-shell">
     <header className="academy-header"><a className="logo" href="index.html"><span className="sigil">ϕ</span>PULSE <b>369</b></a>
-      <nav><a href="create.html">CHOREOGRAPHY CREATOR ↗</a><a href="class.html">DANCE CLASS ↗</a></nav>
+      <nav><a href="workout.html">BUILD A DANCE WORKOUT ↗</a><a href="create.html">CHOREOGRAPHY CREATOR ↗</a><a href="class.html">DANCE CLASS ↗</a></nav>
     </header>
     <main className="academy-main">
       <p className="eyebrow"><span className="dot"/> DANCEFLOW R5 / TECHNIQUE TRAINING</p>
