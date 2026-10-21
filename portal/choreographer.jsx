@@ -4,6 +4,9 @@ import * as THREE from 'three';
 import { DANCE_STYLES } from './dance-core.mjs';
 import { preflightLocalAudio } from './quest-local-music.mjs';
 import { MAX_CHART_BYTES, parseChart, totalCounts } from './choreo-model.mjs';
+import { authoredPose, sampleCoachPose } from './motion-coach.mjs';
+import { createCoachRig, updateCoachRig } from './motion-coach-three.mjs';
+import MotionCoachFigure from './motion-coach-figure.jsx';
 import { CLASS_MINUTES, createDanceClass, classCue, classPosition, classHitAt, validateClassTrack, classReceipt } from './dance-class.mjs';
 import './styles.css';
 import './quest-lab.css';
@@ -46,19 +49,6 @@ function makeRoom(scene) {
     return {side,ring};
   });
 }
-function createInstructor(scene) {
-  const group=new THREE.Group();
-  const translucent=new THREE.MeshBasicMaterial({color:0xe3a7ff,transparent:true,opacity:.35});
-  const body=new THREE.Mesh(new THREE.CapsuleGeometry(.13,.4,4,10),translucent);body.position.y=-.24;group.add(body);
-  const head=new THREE.Mesh(new THREE.SphereGeometry(.13,16,12),translucent);head.position.y=.16;group.add(head);
-  const wrists=['left','right'].map((_,i)=>{
-    const mesh=new THREE.Mesh(new THREE.SphereGeometry(.065,10,8),
-      new THREE.MeshBasicMaterial({color:i?0x87dfff:0xc7f876,transparent:true,opacity:.7}));
-    group.add(mesh);return mesh;
-  });
-  scene.add(group);
-  return {group,wrists};
-}
 
 function Choreographer() {
   const host=useRef(null), running=useRef(null), decoded=useRef(null), version=useRef(0);
@@ -74,6 +64,8 @@ function Choreographer() {
   const [state,setState]=useState('idle');
   const [status,setStatus]=useState('Your instructor is ready.');
   const [reading,setReading]=useState(IDLE);
+  const [coachPose,setCoachPose]=useState(null);
+  const [reducedMotion,setReducedMotion]=useState(false);
   const [receipt,setReceipt]=useState(null);
   const [customChart,setCustomChart]=useState(null);
   const [chartStatus,setChartStatus]=useState('Use the built-in dance routine, or import one exported from DanceFlow R2.');
@@ -147,12 +139,12 @@ function Choreographer() {
 
   async function previewDesktop(){
     if(busy || invalidAudio || !plan)return;
-    setReading(IDLE);setReceipt(null);setState('starting');
+    setReading(IDLE);setCoachPose(null);setReceipt(null);setState('starting');
     const Ctx=window.AudioContext||window.webkitAudioContext;
     let ctx=null,src=null,raf=0,ended=false;
     const counters={offered:0,eligible:0,hits:0};
     const music=musicMode;
-    let anchor=0,lastIndex=-1,lastClick=-1;
+    let anchor=0,lastIndex=-1,lastClick=-1,lastVisual=0;
     const stop=(finished=false)=>{
       if(ended)return;
       ended=true;cancelAnimationFrame(raf);
@@ -180,6 +172,11 @@ function Choreographer() {
         const clock=ctx?ctx.currentTime:performance.now()/1000;
         const index=classPosition(clock,anchor,bpm,plan.totalBeats);
         if(index>=plan.totalBeats){counters.offered=plan.totalBeats;stop(true);return;}
+        if(index>=0 && performance.now()-lastVisual>=32){
+          setCoachPose(sampleCoachPose(i=>classCue(plan,style,i,customChart),
+            (clock-anchor)*bpm/60,{reducedMotion}));
+          lastVisual=performance.now();
+        }
         if(index>=0 && index!==lastIndex){
           const cue=classCue(plan,style,index,customChart);
           counters.offered=Math.max(counters.offered,index+1);
@@ -199,11 +196,11 @@ function Choreographer() {
 
   async function enterVR(){
     if(busy||invalidAudio||!plan||!navigator.xr)return;
-    setReceipt(null);setReading(IDLE);setState('starting');
+    setReceipt(null);setReading(IDLE);setCoachPose(null);setState('starting');
     setStatus('Requesting immersive VR. Stay in a clear, stationary play area.');
     let session=null,renderer=null,scene=null,ctx=null,src=null,ended=false,anchor=0;
     const counters={offered:0,eligible:0,hits:0},scored=new Set();
-    let indexDrawn=-1,lastClicked=-1;
+    let indexDrawn=-1,lastClicked=-1,lastVisual=0;
     const music=musicMode;
     const stop=(finished=false)=>{
       if(ended)return;ended=true;
@@ -243,7 +240,7 @@ function Choreographer() {
       if(!host.current)throw new Error('VR stage was unmounted.');
       host.current.appendChild(renderer.domElement);
       scene=new THREE.Scene();
-      const rings=makeRoom(scene),instructor=createInstructor(scene);
+      const rings=makeRoom(scene),instructor=createCoachRig(scene,THREE);
       const camera=new THREE.PerspectiveCamera(70,700/394,.01,50);
       const controllers=[];
       for(let i=0;i<2;i++){
@@ -287,8 +284,16 @@ function Choreographer() {
         right.crossVectors(forward,UP).normalize();
         // Procedural torso and hands present motion cues; never represent a captured body.
         instructor.group.position.copy(head).addScaledVector(forward,1.55);
-        instructor.group.position.y=head.y-.10;
+        instructor.group.position.y=posture==='seated'
+          ? Math.max(.79,head.y-.27) : Math.max(.85,head.y-.65);
         instructor.group.rotation.y=Math.atan2(forward.x,forward.z)+Math.PI;
+        const animatedPose=sampleCoachPose(i=>classCue(plan,style,i,customChart),
+          (clock-anchor)*bpm/60,{reducedMotion});
+        updateCoachRig(instructor,animatedPose,THREE);
+        if(index>=0 && performance.now()-lastVisual>=90){
+          setCoachPose(animatedPose);
+          lastVisual=performance.now();
+        }
         const targets=guideCue.hands.map(t=>{
           const p=relativeTarget(t,head,right,forward);
           return {side:t.side,x:p.x,y:p.y,z:p.z};
@@ -298,9 +303,6 @@ function Choreographer() {
           const t=targets.find(x=>x.side===side);
           rings[i].ring.visible=!!t && index>=0;
           if(t){rings[i].ring.position.set(t.x,t.y,t.z);rings[i].ring.lookAt(head);}
-          const gesture=guideCue.hands.find(x=>x.side===side);
-          instructor.wrists[i].visible=!!gesture;
-          if(gesture){instructor.wrists[i].position.set(gesture.x*.85,gesture.y-.12,-.10);}
         }
         for(const side of ['left','right'])delete controllerPositions[side];
         for(const c of controllers){
@@ -386,6 +388,10 @@ function Choreographer() {
             <label><input type="radio" checked={posture==='standing'} onChange={()=>setPosture('standing')}/> Standing in place</label>
             <label><input type="radio" checked={posture==='seated'} onChange={()=>setPosture('seated')}/> Seated arm movement</label>
           </fieldset>
+          <label className="choreo-calm"><input type="checkbox" checked={reducedMotion} disabled={busy}
+             onChange={e=>setReducedMotion(e.target.checked)}/>
+            REDUCED MOTION · STATIC INSTRUCTOR CUES / NO SWAY
+          </label>
           <h2>YOUR SOUNDTRACK</h2>
           <fieldset className="quest-posture" disabled={busy}><legend>AUDIO MODE</legend>
             <label><input type="radio" checked={musicMode==='guide'} onChange={()=>setMusicMode('guide')}/> Synthesized beat guide</label>
@@ -421,12 +427,11 @@ function Choreographer() {
               <p>{reading.coach}</p>
             </div>
           </div>
-          <div className="choreo-figure" aria-label="Illustrated virtual instructor with left and right hand positions">
-            <div className="choreo-head"/>
-            <div className="choreo-torso"/>
-            {reading.hands?.map(t=><div key={t.side} className={'choreo-hand '+t.side}
-              style={{left:(50+t.x*66)+'%',top:(55-t.y*82)+'%'}} aria-hidden="true"/>)}
-            <div className="choreo-stage-label">SIMULATED INSTRUCTOR · UPPER-BODY CUES</div>
+          <div className="choreo-figure">
+            <MotionCoachFigure
+              pose={coachPose||authoredPose(classCue(plan,style,0,customChart),0)}
+              reducedMotion={reducedMotion}
+              label="Procedural dance instructor teaching authored full-figure motions, not tracking a person"/>
           </div>
           <div className="choreo-progress"><div style={{width:(reading.progress*100)+'%'}}/></div>
           <div className="choreo-stats">
