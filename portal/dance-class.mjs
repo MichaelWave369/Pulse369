@@ -71,7 +71,7 @@ export function classCue(plan, style, index) {
 export function classPosition(seconds, startSeconds, bpm, count) {
   if (![seconds,startSeconds,bpm].every(Number.isFinite) || bpm<=0 || !Number.isInteger(count) || count<1) return -1;
   const elapsed=(seconds-startSeconds)*bpm/60;
-  return Math.max(-1,Math.min(count,Math.floor(elapsed)));
+  return Math.max(-1,Math.min(count,Math.floor(elapsed + 1e-8)));
 }
 
 export function validateClassTrack(durationSeconds, plan, offsetMs) {
@@ -97,4 +97,15 @@ export function classReceipt({style,plan,posture,completedBeats,eligibleBeats,ma
     offeredBeats:offered,scorableControllerCues:eligible,matchedControllerCues:matched,
     limits:'Not full-body tracking, dance form, calories, heart rate, song beat detection, or validated fitness scoring.'
   };
+}
+
+/** Check a controller cue against the same AudioContext beat grid used for music playback. */
+export function classHitAt(clockSeconds, anchorSeconds, bpm, count, windowMs=220) {
+  if (![clockSeconds,anchorSeconds,bpm,windowMs].every(Number.isFinite) || bpm<60 || bpm>180 || !Number.isInteger(count) || count<1 || count>2048 || windowMs<=0 || windowMs>260) return null;
+  const step=60/bpm;
+  const index=Math.round((clockSeconds-anchorSeconds)/step);
+  if(index<0||index>=count) return null;
+  const errorMs=(clockSeconds-anchorSeconds-index*step)*1000;
+  if(Math.abs(errorMs)>windowMs)return null;
+  return {index,errorMs};
 }
