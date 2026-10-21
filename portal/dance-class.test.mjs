@@ -1,3 +1,4 @@
+import { starterChart, replaceStep, totalCounts } from './choreo-model.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { CLASS_MINUTES, createDanceClass, classCue, classPosition, validateClassTrack, classReceipt, classHitAt } from './dance-class.mjs';
@@ -68,4 +69,29 @@ test('music-clock cue checks are bounded and reject off-beat hits',()=>{
   assert.equal(classHitAt(2.26,2,112,600),null);
   assert.equal(classHitAt(2+600*60/112,2,112,600),null);
   assert.equal(classHitAt(NaN,2,112,600),null);
+});
+
+test('R2 custom charts drive learning, rehearsing and performing without changing gentle phases',()=>{
+  const p=createDanceClass(112,3);
+  const chart=starterChart();
+  const warm=p.blocks.find(b=>b.id==='warmup');
+  const learn=p.blocks.find(b=>b.id==='learn');
+  const rehearse=p.blocks.find(b=>b.id==='rehearse');
+  const perform=p.blocks.find(b=>b.id==='perform');
+  const cool=p.blocks.find(b=>b.id==='cooldown');
+  assert.ok(!classCue(p,'groove',warm.start,chart).chartPhrase);
+  assert.equal(classCue(p,'groove',learn.start,chart).chartPhrase,'OPENING GROOVE');
+  assert.equal(classCue(p,'groove',rehearse.start,chart).chartPhrase,'OPENING GROOVE');
+  assert.equal(classCue(p,'groove',rehearse.start+8,chart).chartPhrase,'FUNK BREAK');
+  assert.equal(classCue(p,'groove',perform.start+totalCounts(chart),chart).chartPhrase,'OPENING GROOVE');
+  assert.ok(!classCue(p,'groove',cool.start,chart).chartPhrase);
+  const mirrored=replaceStep(chart,0,0,{style:'groove',moveIndex:0,mirror:true});
+  assert.equal(classCue(p,'groove',rehearse.start,mirrored).hands[0].side,'right');
+  const receipt=classReceipt({
+    style:'groove',plan:p,posture:'seated',completedBeats:54,eligibleBeats:15,
+    matchedCues:7,musicMode:'local',routineSource:'imported',title:'SECRET ARTIST'
+  });
+  assert.equal(receipt.style,'custom-chart');
+  assert.equal(receipt.routineMode,'imported-local-chart');
+  for(const k of ['title','artist','filename','rawPose','song'])assert.equal(Object.hasOwn(receipt,k),false);
 });
