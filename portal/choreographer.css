@@ -49,3 +49,15 @@
 .choreo-figure .motion-coach-svg{width:100%;height:100%;display:block}
 .choreo-calm{display:flex;align-items:center;gap:11px;margin:17px 0 25px;padding:13px;background:#102c35;border:1px solid #527c7d;color:#e3f2ff;font-size:11px;font-weight:800;cursor:pointer}
 .choreo-calm input{width:19px;height:19px;accent-color:#c7f876}
+
+.choreo-shell .director-banner{display:flex;justify-content:space-between;gap:10px;padding:12px;margin:9px 0 12px;background:#182f3d;border:1px solid #597c88;flex-wrap:wrap}
+.choreo-shell .director-banner strong{font-size:11px;font-weight:900;letter-spacing:.08em;color:#c7f876}
+.choreo-shell .director-banner span{font-size:11px;color:#e1f5ff}
+.choreo-shell .director-up-next{padding:13px;margin:12px 0;background:#23344a;border-left:3px solid #ffa875;display:flex;flex-wrap:wrap;gap:12px;align-items:center}
+.choreo-shell .director-up-next span{color:#ffa875;font-size:10px;font-weight:900;letter-spacing:.09em}
+.choreo-shell .director-up-next strong{color:#f6f8ff;font-size:12px}
+.choreo-shell .director-intensity{display:flex;align-items:center;gap:9px;flex-wrap:wrap;margin:10px 0}
+.choreo-shell .director-intensity span{font-size:11px;letter-spacing:.05em;font-weight:800;color:#d1e8ed}
+.choreo-shell .director-intensity button{padding:11px 13px;border:1px solid #557587;background:#173049;color:#e9f7ff;font-size:10px;font-weight:900;cursor:pointer}
+.choreo-shell .director-intensity button.selected{background:#c7f876;color:#162331;border-color:#c7f876}
+.choreo-shell .director-intensity button:disabled{opacity:.5;cursor:not-allowed}
