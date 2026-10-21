@@ -65,7 +65,8 @@ test('animation remains deterministic and visually continuous at scene change',(
     assert.ok(tiny(left.pose.wrist[side].y,right.pose.wrist[side].y));
   }
   assert.deepEqual(sampleShow(p,42.25),sampleShow(p,42.25));
-  assert.ok(sampleShow(p,2.5).lightEnergy>0);
+  assert.ok(sampleShow(p,2.25).lightEnergy>0);
+  assert.equal(sampleShow(p,2.5).lightEnergy,0);
   const calm=buildShow({...p.show,settings:{...p.show.settings,reducedMotion:true}});
   assert.equal(sampleShow(calm,2.5).lightEnergy,0);
   assert.deepEqual(sampleShow(calm,2.2).pose,sampleShow(calm,2.7).pose);
