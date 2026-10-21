@@ -104,7 +104,7 @@ export function sampleCoachPose(cueAt,beats,{reducedMotion=false}={}) {
 // No inputs are measured positions of a real human.
 export function projectCoachPose(pose,width=400,height=340) {
   if(!pose)return null;
-  const cx=width/2, base=height*.94, scale=Math.min(width,height)*.286;
+  const cx=width/2, base=height*.94, scale=Math.min(width,height)*.54;
   const project=p=>point(cx+p.x*scale,base-(p.y+.84)*scale);
   const result={};
   for(const key of ['head','neck','spine','hips'])result[key]=project(pose[key]);
