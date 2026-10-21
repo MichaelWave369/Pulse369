@@ -170,7 +170,7 @@ function Workout(){
   const percentage=Math.round(((running&&index>=0?index+1:done)/plan.totalCounts)*100);
   return <div className="academy-shell workout-shell">
     <header className="academy-header"><a className="logo" href="index.html"><span className="sigil">ϕ</span>PULSE <b>369</b></a>
-      <nav><a href="academy.html">DANCE ACADEMY ↗</a><a href="create.html">CHOREOGRAPHY CREATOR ↗</a><a href="class.html">QUEST CLASS ↗</a></nav></header>
+      <nav><a href="performance.html">PERFORMANCE STUDIO ↗</a><a href="academy.html">DANCE ACADEMY ↗</a><a href="create.html">CHOREOGRAPHY CREATOR ↗</a><a href="class.html">QUEST CLASS ↗</a></nav></header>
     <main className="academy-main workout-main">
       <p className="eyebrow"><span className="dot"/> DANCEFLOW R6 / THE WORKOUT BUILDER</p>
       <h1>BUILD YOUR <em>SET.</em></h1>
