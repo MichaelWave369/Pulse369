@@ -55,5 +55,7 @@ jobs:
         run: node --test portal/choreo-model.test.mjs
       - name: Motion Coach interpolation, reduced-motion and pose projection tests
         run: node --test portal/motion-coach.test.mjs
+      - name: Dance Director style, boundary, expression and phrase cues tests
+        run: node --test portal/dance-director.test.mjs
       - name: Worker integration checks
         run: node scripts/verify-studio.mjs
