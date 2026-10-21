@@ -1,0 +1,24 @@
+.dance-shell{background:radial-gradient(ellipse at 20% 4%,#4a235777,transparent 55%),radial-gradient(ellipse at 94% 20%,#174b6677,transparent 45%),#09101f}
+.dance-main h1{font-size:clamp(68px,12vw,140px);letter-spacing:-.09em}
+.dance-styles{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:15px;margin:35px 0}
+.dance-styles button{display:flex;flex-direction:column;text-align:left;gap:10px;padding:23px;min-height:145px;border:1px solid #466080;color:#ecf8ff;background:linear-gradient(160deg,#222348,#101c31);cursor:pointer}
+.dance-styles button.selected{border-color:#c7f876;box-shadow:inset 0 0 0 2px #c7f876,0 12px 40px #0b082a}
+.dance-styles button:disabled{cursor:not-allowed;opacity:.55}
+.dance-styles button small{font-size:10px;letter-spacing:.12em;color:#9fc9ea;font-weight:800}
+.dance-styles button strong{font-size:19px;letter-spacing:-.04em}
+.dance-styles button span{font-size:12px;line-height:1.45;color:#b5c8d7}
+.dance-warning{font-size:13px!important;line-height:1.75;color:#d6cbcd!important;border-left:3px solid #c7f876;padding:8px 15px;background:#0a172c;margin:22px 0}
+.dance-warning a{color:#c7f876;text-decoration:underline}
+.dance-support{color:#92bbd3!important}
+.dance-live{display:grid;grid-template-columns:132px 1fr;align-items:stretch;gap:13px;margin-bottom:22px}
+.dance-count{border:1px solid #6f8a81;background:#13293a;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:5px;padding:22px 8px}
+.dance-count span,.dance-count small,.dance-phrase span{font-size:10px;color:#a6c5d0;letter-spacing:.13em;font-weight:800}
+.dance-count strong{font-size:84px;color:#c7f876;line-height:1}
+.dance-phrase{border:1px solid #39516d;background:#0c1a32;padding:20px;display:flex;flex-direction:column;gap:13px;justify-content:center}
+.dance-phrase strong{font-size:clamp(21px,3vw,33px);letter-spacing:-.04em;color:white}
+.dance-phrase p{margin:0;font-size:13px;line-height:1.6;color:#b7d4e8}
+.dance-main .quest-preview canvas{width:100%!important;max-width:100%;height:auto!important;display:block}
+.dance-main .quest-preview>p{color:#9db5cc;padding:15px}
+.dance-main .quest-receipt{margin-top:20px}
+@media(max-width:800px){.dance-styles{grid-template-columns:1fr}.dance-styles button{min-height:115px}.dance-live{grid-template-columns:95px 1fr}.dance-count strong{font-size:64px}}
+@media(max-width:380px){.dance-live{grid-template-columns:1fr}.dance-count{flex-direction:row}.dance-count strong{font-size:60px}}
