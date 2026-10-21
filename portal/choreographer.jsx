@@ -253,6 +253,10 @@ function Choreographer() {
         const clock=ctx.currentTime;
         const index=classPosition(clock,anchor,bpm,plan.totalBeats);
         const cue=classCue(plan,style,Math.max(0,Math.min(index,plan.totalBeats-1)));
+        const hit=index<plan.totalBeats?classHitAt(clock,anchor,bpm,plan.totalBeats):null;
+        // During the early half of a beat window, guide the upcoming cue so
+        // legitimate early hand movements can count as well as late ones.
+        const guideCue=hit ? classCue(plan,style,hit.index) : cue;
         const xrCamera=renderer.xr.getCamera();
         xrCamera.getWorldPosition(head);
         xrCamera.getWorldDirection(forward);forward.y=0;
@@ -263,7 +267,7 @@ function Choreographer() {
         instructor.group.position.copy(head).addScaledVector(forward,1.55);
         instructor.group.position.y=head.y-.10;
         instructor.group.rotation.y=Math.atan2(forward.x,forward.z)+Math.PI;
-        const targets=cue.hands.map(t=>{
+        const targets=guideCue.hands.map(t=>{
           const p=relativeTarget(t,head,right,forward);
           return {side:t.side,x:p.x,y:p.y,z:p.z};
         });
@@ -272,7 +276,7 @@ function Choreographer() {
           const t=targets.find(x=>x.side===side);
           rings[i].ring.visible=!!t && index>=0;
           if(t){rings[i].ring.position.set(t.x,t.y,t.z);rings[i].ring.lookAt(head);}
-          const gesture=cue.hands.find(x=>x.side===side);
+          const gesture=guideCue.hands.find(x=>x.side===side);
           instructor.wrists[i].visible=!!gesture;
           if(gesture){instructor.wrists[i].position.set(gesture.x*.85,gesture.y-.12,-.10);}
         }
@@ -284,13 +288,12 @@ function Choreographer() {
           }
         }
         if(index>=0&&index<plan.totalBeats){
-          const hit=classHitAt(clock,anchor,bpm,plan.totalBeats);
-          if(hit && hit.index===index && !scored.has(index) && cue.scoreEligible &&
+          if(hit && !scored.has(hit.index) && guideCue.scoreEligible &&
             targets.every(t=>{
               const p=controllerPositions[t.side];
               return p&&Math.hypot(t.x-p.x,t.y-p.y,t.z-p.z)<=.28;
             })){
-            scored.add(index);counters.hits++;
+            scored.add(hit.index);counters.hits++;
           }
           if(index!==indexDrawn){
             indexDrawn=index;
