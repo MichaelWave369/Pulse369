@@ -19,6 +19,7 @@ export default defineConfig({
         danceClass: fileURLToPath(new URL('class.html', import.meta.url)),
         danceCreator: fileURLToPath(new URL('create.html', import.meta.url)),
         danceAcademy: fileURLToPath(new URL('academy.html', import.meta.url)),
+        danceWorkout: fileURLToPath(new URL('workout.html', import.meta.url)),
         rehearsal: fileURLToPath(new URL('rehearsal.html', import.meta.url)),
         compare: fileURLToPath(new URL('compare.html', import.meta.url)),
         firstRun: fileURLToPath(new URL('first-run.html', import.meta.url)),
