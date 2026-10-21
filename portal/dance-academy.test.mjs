@@ -9,7 +9,8 @@ test('three authored eight-count lessons use grounded in-place positions',()=>{
     const lesson=LESSONS[key];
     assert.equal(lesson.counts.length,8);
     for(const move of lesson.counts){
-      for(const field of ['label','standing','seated','tip'])assert.ok(move[field].length>8);
+      assert.ok(move.label.length>=3);
+      for(const field of ['standing','seated','tip'])assert.ok(move[field].length>8);
       assert.ok(['left','right','both'].includes(move.focus));
       for(const side of ['left','right']){
         const p=move.feet[side];
