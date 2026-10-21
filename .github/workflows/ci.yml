@@ -49,5 +49,7 @@ jobs:
         run: node --test portal/quest-first-run.test.mjs
       - name: DanceFlow choreography, timing and privacy tests
         run: node --test portal/dance-core.test.mjs
+      - name: Choreographer class timeline, audio guard and privacy tests
+        run: node --test portal/dance-class.test.mjs
       - name: Worker integration checks
         run: node scripts/verify-studio.mjs
