@@ -353,7 +353,7 @@ function Choreographer() {
   return <div className="quest-shell choreo-shell">
     <header className="quest-header">
       <a className="logo" href="index.html"><span className="sigil">ϕ</span>PULSE <b>369</b></a>
-      <a href="academy.html">LEARN THE STEPS R5 ↗</a><a href="create.html">CHOREOGRAPHY CREATOR R2 ↗</a>
+      <a href="workout.html">WORKOUT BUILDER R6 ↗</a><a href="academy.html">LEARN THE STEPS R5 ↗</a><a href="create.html">CHOREOGRAPHY CREATOR R2 ↗</a>
     </header>
     <main className="quest-main choreo-main">
       <p className="eyebrow"><span className="dot"/> THE CHOREOGRAPHER / DANCEFLOW R1</p>

@@ -59,5 +59,7 @@ jobs:
         run: node --test portal/dance-director.test.mjs
       - name: Dance Academy lessons, safe seated cues, and R2 export privacy tests
         run: node --test portal/dance-academy.test.mjs
+      - name: Dance Workout Builder schedule, imports, recovery, hand-chart and privacy tests
+        run: node --test portal/dance-workout.test.mjs
       - name: Worker integration checks
         run: node scripts/verify-studio.mjs
