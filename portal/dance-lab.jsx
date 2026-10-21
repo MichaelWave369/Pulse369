@@ -223,10 +223,11 @@ function DanceLab() {
   const disabled=phase!=='idle'||preview;
   const groove=DANCE_STYLES[style];
   return <div className="quest-shell dance-shell">
-    <header className="quest-header"><a className="logo" href="index.html"><span className="sigil">ϕ</span>PULSE <b>369</b></a><a href="first-run.html">QUEST FIRST RUN ↗</a></header>
+    <header className="quest-header"><a className="logo" href="index.html"><span className="sigil">ϕ</span>PULSE <b>369</b></a><a href="class.html">CHOREOGRAPHER R1 ↗</a></header>
     <main className="quest-main dance-main">
       <p className="eyebrow"><span className="dot"/> MOVEMENT LAB / EXPERIMENTAL VR CHOREOGRAPHY</p>
       <h1>DANCE<em>FLOW</em></h1>
+      <div className="dance-r1-link"><strong>NEW · THE CHOREOGRAPHER</strong><p>Ready for a longer guided dance class? Learn the eight-count, rehearse, dance and cool down with optional local songs.</p><a className="btn solid" href="class.html">ENTER DANCEFLOW R1 ↗</a></div>
       <p className="quest-sub">Real eight-count dance phrases with workout-friendly arm movement, directional grooves and a neon studio. Learn the steps, repeat the phrase, then follow controller cues in your Quest. <strong>Never confuse controller accuracy with judging someone's dancing.</strong></p>
       <div className="dance-styles" aria-label="Dance style selection">
         {Object.entries(DANCE_STYLES).map(([key,data])=><button key={key} type="button" disabled={disabled} className={style===key?'selected':''} onClick={()=>{setStyle(key);setReading(DEFAULT_READING);}}>
