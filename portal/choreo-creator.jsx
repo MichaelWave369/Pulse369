@@ -2,7 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { createRoot } from 'react-dom/client';
 import { DANCE_STYLES } from './dance-core.mjs';
 import { preflightLocalAudio } from './quest-local-music.mjs';
-import { sampleDirectedPose, directionAt, STAGE_STYLES } from './dance-director.mjs';
+import { sampleDirectedPose, directionAt } from './dance-director.mjs';
 import MotionCoachFigure from './motion-coach-figure.jsx';
 import {
   MAX_CHART_BYTES, MAX_PHRASES, STYLES, starterChart,normalizeChart,
