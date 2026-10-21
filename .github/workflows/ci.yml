@@ -47,5 +47,7 @@ jobs:
         run: node --test portal/qa-compare.test.mjs
       - name: Manual Quest first-run provenance and gating tests
         run: node --test portal/quest-first-run.test.mjs
+      - name: DanceFlow choreography, timing and privacy tests
+        run: node --test portal/dance-core.test.mjs
       - name: Worker integration checks
         run: node scripts/verify-studio.mjs
