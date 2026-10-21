@@ -199,9 +199,9 @@ function Performance(){
     </header>
     <main className="perf-main">
       <div className="perf-heading">
-        <div><p className="perf-eyebrow">DANCEFLOW R7 / THE PERFORMANCE STUDIO</p>
+        <div><p className="perf-eyebrow">DANCEFLOW R8 / THE SHOW RUNNER</p>
           <h1>OWN THE <em>STAGE.</em></h1>
-          <p>Direct your authored choreography like a live set. Choose a stage for every section, rehearse it to your own local soundtrack, and save the show as portable JSON.</p>
+          <p>Direct, rehearse and run a full dance show with reusable stage presets, exact section cue points, and a printable show cue sheet. Your choreography and music remain local.</p>
         </div>
         <div className="perf-head-actions">
           <button disabled={playing} onClick={()=>fileDownload('pulse369-stage-show.json',encodeShow(show))}>↓ SAVE SHOW JSON</button>
@@ -255,8 +255,28 @@ function Performance(){
               REDUCED MOTION · STATIC LIGHTING AND COUNT POSES
             </label>
           </div>
+          <div className="perf-panel perf-preset-panel">
+            <h2>03 / REUSABLE STAGE PRESETS</h2>
+            <p className="perf-hint">Preset files contain visual direction only. Apply one to any R2/R6 show without replacing its choreography or timing.</p>
+            <div className="perf-preset-row">
+              <label>BUILT-IN LOOK
+                <select value={presetChoice} disabled={playing} onChange={e=>setPresetChoice(e.target.value)}>
+                  {Object.entries(BUILTIN_PRESETS).map(([id,p])=><option value={id} key={id}>{p.name}</option>)}
+                </select>
+              </label>
+              <button disabled={playing} onClick={()=>update(old=>applyPreset(old,builtInPreset(presetChoice)),
+                'Applied '+BUILTIN_PRESETS[presetChoice].name+'. Choreography unchanged.')}>APPLY LOOK</button>
+            </div>
+            <p className="perf-hint">{BUILTIN_PRESETS[presetChoice].description}</p>
+            <div className="perf-preset-actions">
+              <button disabled={playing} onClick={savePreset}>↓ SAVE MY STAGE PRESET</button>
+              <label className="perf-preset-import">↑ LOAD STAGE PRESET
+                <input type="file" disabled={playing} accept=".json,application/json" onChange={importPreset}/>
+              </label>
+            </div>
+          </div>
           <div className="perf-panel">
-            <h2>03 / SCENE TIMELINE</h2>
+            <h2>04 / SCENE TIMELINE</h2>
             <p className="perf-hint">Choose a section to inspect its pose. Each section can use its own stage lighting; the choreography and timing remain untouched.</p>
             <div className="perf-timeline">
               {plan.segments.map(s=><div className={'perf-segment'+(s.index===active?' current':'')} key={s.index}>
@@ -274,7 +294,7 @@ function Performance(){
             </div>
           </div>
           <div className="perf-panel">
-            <h2>04 / AUDIO CONTROL</h2>
+            <h2>05 / SHOW TRANSPORT</h2>
             <fieldset disabled={playing} className="perf-audio-mode">
               <legend>REHEARSAL SOUND</legend>
               <label><input type="radio" checked={mode==='guide'} onChange={()=>setMode('guide')}/> SYNTH COUNT GUIDE</label>
@@ -288,9 +308,12 @@ function Performance(){
               {error&&<p role="alert" className="perf-error">{error}</p>}
             </div>}
             <div className="perf-play-buttons">
-              <button disabled={playing||!!error} onClick={start}>▶ PLAY STAGED SHOW</button>
+              <button disabled={playing||!!error} onClick={()=>start(false)}>▶ FULL SHOW</button>
+              <button disabled={playing||!!error} onClick={()=>start(true)}>↪ REHEARSE SELECTED SECTION</button>
+              <button disabled={!playing} onClick={togglePause}>{paused?'▶ RESUME':'Ⅱ PAUSE'}</button>
               <button disabled={!playing} onClick={()=>run.current?.stop(false)}>■ STOP</button>
             </div>
+            <p className="perf-hint">Cue from section {selected+1}, {plan.segments[selected]?.label}. Synthesized guide starts on that count. Local music seeks to the matching time; the manual BPM/offset remain unchanged.</p>
             <p className="perf-status" role="status">{status}</p>
           </div>
         </section>
@@ -298,7 +321,11 @@ function Performance(){
           <div className="perf-stage-wrapper">
             <div className="perf-stage-toolbar">
               <div><small>NOW ON STAGE</small><strong>{scene?.label||'SHOW READY'}</strong></div>
-              <button onClick={()=>setTheater(v=>!v)}>{theater?'↙ EXIT THEATER':'↗ THEATER MODE'}</button>
+              <div className="perf-theater-controls">
+                {playing&&<button onClick={togglePause}>{paused?'▶ RESUME':'Ⅱ PAUSE'}</button>}
+                {playing&&<button onClick={()=>run.current?.stop(false)}>■ STOP</button>}
+                <button onClick={()=>setTheater(v=>!v)}>{theater?'↙ EXIT THEATER':'↗ THEATER MODE'}</button>
+              </div>
             </div>
             <div className={'perf-stage perf-'+(scene?.theme||'neon')+(show.settings.reducedMotion?' still':'')}
               style={{'--stage-accent':palette.accent,'--stage-secondary':palette.secondary,'--pulse':current?.lightEnergy||0}}>
@@ -326,6 +353,31 @@ function Performance(){
               <strong>{scene.next.label} · {STAGES[scene.next.stage].name}</strong>
             </div>}
           </div>
+          <section className="perf-panel perf-sheet" aria-label="Show cue sheet">
+            <div className="perf-sheet-head">
+              <h2>06 / THE SHOW CUE SHEET</h2>
+              <div className="perf-sheet-actions">
+                <button onClick={()=>fileDownload('pulse369-show-cue-sheet.txt',cueSheetText(show))}>↓ EXPORT TXT</button>
+                <button onClick={()=>window.print()}>⎙ PRINT CUE SHEET</button>
+              </div>
+            </div>
+            <p className="perf-hint">Times refer to the local soundtrack starting at zero, including the manually authored beat offset. The guide sound starts counting immediately. No automatic beat detection or measured stage timing.</p>
+            <div className="perf-sheet-meta">
+              <strong>{show.title}</strong>
+              <span>{plan.bpm} BPM · {plan.offsetMs} MS OFFSET · {plan.totalCounts} COUNTS</span>
+            </div>
+            <div className="perf-sheet-scroll">
+              <table>
+                <thead><tr><th>CUE</th><th>TIME</th><th>COUNTS</th><th>SECTION</th><th>STAGE</th></tr></thead>
+                <tbody>{cueRows.map(row=><tr key={row.number}>
+                  <td>{String(row.number).padStart(2,'0')}</td>
+                  <td>{Math.floor(row.atSeconds/60).toString().padStart(2,'0')}:{(row.atSeconds%60).toFixed(2).padStart(5,'0')}</td>
+                  <td>{row.count}–{row.endCount}</td><td>{row.section}</td><td>{row.stageName}</td>
+                </tr>)}</tbody>
+              </table>
+            </div>
+            <p className="perf-sheet-limits">AUTHORED CUE SHEET ONLY · R2/R6 COUNT TIMELINE · NO TRACK FILE STORED</p>
+          </section>
           <div className="perf-note">
             <strong>SCREEN PERFORMANCE · NOT MOTION CAPTURE</strong>
             <p>Everything you see is procedural choreography, not an observation of you. This studio doesn't record video, listen to the room, analyze dancing, measure fitness, or upload your music. A complete show file includes the authored routine and scene settings, never audio bytes.</p>
@@ -333,7 +385,7 @@ function Performance(){
           </div>
         </section>
       </div>
-      <footer className="perf-bottom">PULSE369 · DANCE PERFORMANCE STUDIO R7 · MIT · LOCAL-FIRST <a href="index.html">RETURN TO STUDIO ↗</a></footer>
+      <footer className="perf-bottom">PULSE369 · DANCE SHOW RUNNER R8 · MIT · LOCAL-FIRST <a href="index.html">RETURN TO STUDIO ↗</a></footer>
     </main>
   </div>;
 }
