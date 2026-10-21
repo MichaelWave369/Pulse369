@@ -115,7 +115,7 @@ function Choreographer() {
   }
 
   function completeSession(counters, mode, stopped) {
-    if(running.current?.counters!==counters)return;
+    if(running.current && running.current.counters!==counters)return;
     running.current=null;
     setState('idle');
     setReceipt(classReceipt({style,plan,posture,completedBeats:counters.offered,
