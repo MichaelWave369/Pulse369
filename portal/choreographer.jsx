@@ -3,6 +3,7 @@ import { createRoot } from 'react-dom/client';
 import * as THREE from 'three';
 import { DANCE_STYLES } from './dance-core.mjs';
 import { preflightLocalAudio } from './quest-local-music.mjs';
+import { MAX_CHART_BYTES, parseChart, totalCounts } from './choreo-model.mjs';
 import { CLASS_MINUTES, createDanceClass, classCue, classPosition, classHitAt, validateClassTrack, classReceipt } from './dance-class.mjs';
 import './styles.css';
 import './quest-lab.css';
@@ -74,6 +75,8 @@ function Choreographer() {
   const [status,setStatus]=useState('Your instructor is ready.');
   const [reading,setReading]=useState(IDLE);
   const [receipt,setReceipt]=useState(null);
+  const [customChart,setCustomChart]=useState(null);
+  const [chartStatus,setChartStatus]=useState('Use the built-in dance routine, or import one exported from DanceFlow R2.');
 
   const plan=createDanceClass(bpm,minutes);
   const invalidAudio=musicMode==='local' ? (!fileReady?'Choose a valid local MP3/WAV first.':validateClassTrack(decoded.current?.duration,plan,offset)) : null;
@@ -109,6 +112,24 @@ function Choreographer() {
     }finally{if(ctx && ctx.state!=='closed')await ctx.close().catch(()=>{});}
   }
 
+  async function pickChart(event){
+    if(state!=='idle')return;
+    const file=event.target.files?.[0];
+    event.target.value='';
+    if(!file)return;
+    if(file.size>MAX_CHART_BYTES){setChartStatus('Rejected: chart exceeds 64 KiB.');return;}
+    try{
+      const imported=parseChart(await file.text());
+      // A stopped/finished class may switch back to idle while the file reads.
+      if(running.current)return;
+      setCustomChart(imported);
+      setBpm(imported.bpm);
+      setOffset(imported.offsetMs);
+      setChartStatus('Imported '+imported.phrases.length+' phrases / '+totalCounts(imported)+' counts locally. Manual BPM and offset applied. No audio imported.');
+      setReceipt(null);setReading(IDLE);
+    }catch(err){setChartStatus('Import rejected: '+err.message);}
+  }
+
   function endCurrent(){running.current?.stop();}
   function makeUI(cue,index,matched,total) {
     return {...cue,count:index+1,matched,secondsLeft:Math.max(0,(total-index-1)*60/bpm),progress:(index+1)/total};
@@ -119,7 +140,8 @@ function Choreographer() {
     running.current=null;
     setState('idle');
     setReceipt(classReceipt({style,plan,posture,completedBeats:counters.offered,
-      eligibleBeats:counters.eligible,matchedCues:counters.hits,musicMode:mode}));
+      eligibleBeats:counters.eligible,matchedCues:counters.hits,musicMode:mode,
+      routineSource:customChart?'imported':'builtin'}));
     setStatus(stopped?'Class ended early. Your local unverified summary is available.':'Class complete. Nice movement! Your controller summary is available.');
   }
 
@@ -159,7 +181,7 @@ function Choreographer() {
         const index=classPosition(clock,anchor,bpm,plan.totalBeats);
         if(index>=plan.totalBeats){counters.offered=plan.totalBeats;stop(true);return;}
         if(index>=0 && index!==lastIndex){
-          const cue=classCue(plan,style,index);
+          const cue=classCue(plan,style,index,customChart);
           counters.offered=Math.max(counters.offered,index+1);
           counters.eligible=plan.blocks.filter(b=>b.scored).reduce((n,b)=>n+Math.max(0,Math.min(index+1,b.end)-b.start),0);
           setReading(makeUI(cue,index,0,plan.totalBeats));
@@ -252,7 +274,7 @@ function Choreographer() {
         if(ended)return;
         const clock=ctx.currentTime;
         const index=classPosition(clock,anchor,bpm,plan.totalBeats);
-        const cue=classCue(plan,style,Math.max(0,Math.min(index,plan.totalBeats-1)));
+        const cue=classCue(plan,style,Math.max(0,Math.min(index,plan.totalBeats-1)),customChart);
         const hit=index<plan.totalBeats?classHitAt(clock,anchor,bpm,plan.totalBeats):null;
         // During the early half of a beat window, guide the upcoming cue so
         // legitimate early hand movements can count as well as late ones.
@@ -327,7 +349,7 @@ function Choreographer() {
   return <div className="quest-shell choreo-shell">
     <header className="quest-header">
       <a className="logo" href="index.html"><span className="sigil">ϕ</span>PULSE <b>369</b></a>
-      <a href="dance.html">← DANCEFLOW R0</a>
+      <a href="create.html">CHOREOGRAPHY CREATOR R2 ↗</a>
     </header>
     <main className="quest-main choreo-main">
       <p className="eyebrow"><span className="dot"/> THE CHOREOGRAPHER / DANCEFLOW R1</p>
@@ -344,12 +366,22 @@ function Choreographer() {
               {Object.entries(DANCE_STYLES).map(([id,s])=><option key={id} value={id}>{s.name}</option>)}
             </select></label>
             <label>MANUAL TEMPO<select disabled={busy} value={bpm} onChange={e=>setBpm(Number(e.target.value))}>
-              {[96,112,128].map(b=><option key={b} value={b}>{b} BPM</option>)}
+              {[...new Set([96,112,128,bpm])].sort((a,b)=>a-b).map(b=><option key={b} value={b}>{b} BPM</option>)}
             </select></label>
             <label>CLASS LENGTH<select disabled={busy} value={minutes} onChange={e=>setMinutes(Number(e.target.value))}>
               {CLASS_MINUTES.map(m=><option key={m} value={m}>ABOUT {m} MIN</option>)}
             </select></label>
           </div>
+          <h2>OPTIONAL · YOUR CUSTOM CHOREOGRAPHY</h2>
+          <p><a href="create.html" style={{color:'#c7f876',textDecoration:'underline'}}>Make your own routine in DanceFlow R2 ↗</a>, export its JSON, then load it here for the rehearsal and performance phases. Warm-up and cooldown stay gentle.</p>
+          <label className="music-picker">LOAD ROUTINE JSON (64 KIB MAX)
+            <input type="file" accept=".json,application/json" disabled={busy} onChange={pickChart}/>
+          </label>
+          <p role="status" className="choreo-file-status">{chartStatus}</p>
+          {customChart&&<div className="choreo-imported">
+            <strong>ACTIVE CUSTOM ROUTINE</strong><p>{customChart.title} · {customChart.phrases.length} phrases · {totalCounts(customChart)} counts</p>
+            <button type="button" disabled={busy} onClick={()=>{setCustomChart(null);setChartStatus('Built-in choreography restored.');setReceipt(null);}}>USE BUILT-IN ROUTINE</button>
+          </div>}
           <fieldset className="quest-posture" disabled={busy}><legend>YOUR COMFORT</legend>
             <label><input type="radio" checked={posture==='standing'} onChange={()=>setPosture('standing')}/> Standing in place</label>
             <label><input type="radio" checked={posture==='seated'} onChange={()=>setPosture('seated')}/> Seated arm movement</label>
@@ -384,7 +416,7 @@ function Choreographer() {
           <div className="choreo-live">
             <div className="choreo-count"><span>{reading.phaseName}</span><strong>{reading.beat||'·'}</strong><small>COUNT / 8</small></div>
             <div className="choreo-move">
-              <span>{chosen.name} · PHRASE {reading.phrase||'·'}</span>
+              <span>{customChart?'CUSTOM CHOREOGRAPHY':chosen.name} · {reading.chartPhrase||('PHRASE '+(reading.phrase||'·'))}</span>
               <strong>{reading.name}</strong>
               <p>{reading.coach}</p>
             </div>
