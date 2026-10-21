@@ -65,7 +65,7 @@ test('real half-phrase breakdown occurs before full eight-count',()=>{
 test('music-clock cue checks are bounded and reject off-beat hits',()=>{
   assert.equal(classHitAt(1.5,2,112,600),null);
   assert.deepEqual(classHitAt(2,2,112,600),{index:0,errorMs:0});
-  assert.equal(classHitAt(2.35,2,112,600),null);
+  assert.equal(classHitAt(2.26,2,112,600),null);
   assert.equal(classHitAt(2+600*60/112,2,112,600),null);
   assert.equal(classHitAt(NaN,2,112,600),null);
 });
