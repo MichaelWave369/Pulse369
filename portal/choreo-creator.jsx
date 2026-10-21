@@ -233,7 +233,7 @@ function Creator(){
   return <div className="creator-shell">
     <header className="creator-header">
       <a className="logo" href="index.html"><span className="sigil">ϕ</span>PULSE <b>369</b></a>
-      <nav><a href="class.html">CHOREOGRAPHER R1 ↗</a><a href="dance.html">DANCEFLOW R0 ↗</a></nav>
+      <nav><a href="academy.html">DANCE ACADEMY R5 ↗</a><a href="class.html">CHOREOGRAPHER R1 ↗</a><a href="dance.html">DANCEFLOW R0 ↗</a></nav>
     </header>
     <main className="creator-main">
       <p className="eyebrow"><span className="dot"/> DANCEFLOW R2 / CHOREOGRAPHY WORKSHOP</p>
