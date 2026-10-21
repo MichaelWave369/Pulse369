@@ -66,7 +66,7 @@
 .perf-stage-toolbar strong{font-size:18px}
 .perf-stage-toolbar button{background:#23344e;color:#dce9ff;border:1px solid #7985b1;padding:11px 12px;cursor:pointer;font-size:10px;font-weight:900;letter-spacing:.04em}
 .perf-stage{height:min(57vw,580px);min-height:365px;position:relative;overflow:hidden;isolation:isolate;background:#0a122c}
-.perf-stage-backdrop{position:absolute;inset:0;background:radial-gradient(ellipse at 50% 12%,color-mix(in srgb,var(--stage-accent) 32%,transparent),transparent 64%),radial-gradient(ellipse at 10% 75%,color-mix(in srgb,var(--stage-secondary) 20%,transparent),transparent 70%),#090c24;transition:background-color .5s}
+.perf-stage-backdrop{position:absolute;inset:0;filter:brightness(calc(1 + var(--pulse,0)));background:radial-gradient(ellipse at 50% 12%,color-mix(in srgb,var(--stage-accent) 32%,transparent),transparent 64%),radial-gradient(ellipse at 10% 75%,color-mix(in srgb,var(--stage-secondary) 20%,transparent),transparent 70%),#090c24;transition:background-color .5s}
 .perf-light-beam{position:absolute;top:-70px;height:130%;width:45%;opacity:.44;mix-blend-mode:screen;transform-origin:50% 0;background:linear-gradient(to bottom,color-mix(in srgb,var(--stage-accent) 40%,transparent),transparent 75%);clip-path:polygon(47% 0,53% 0,100% 100%,0 100%);pointer-events:none}
 .perf-light-beam.beam-left{left:-9%;transform:rotate(-18deg)}
 .perf-light-beam.beam-right{right:-9%;transform:rotate(18deg);background:linear-gradient(to bottom,color-mix(in srgb,var(--stage-secondary) 48%,transparent),transparent 75%)}
