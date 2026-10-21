@@ -50,5 +50,14 @@
 - Preview with synthesized guide and local valid/invalid MP3/WAV; verify bad files never play and that stop frees the audio context.
 - Verify reload removes unexported routine and audio; confirm the JSON contains no selected music, pose trails or health data.
 
-## Next step
-Portable chart playback inside R1's rehearsal/performance phases is a separate integration. If enabled, R1 must still apply its existing safety, local-music and hardware validation gates. The creator alone does not modify R1's class engine.
+## R1 Choreographer integration
+The existing `/Pulse369/class.html` route also gains a separate local **LOAD ROUTINE JSON** picker:
+- Import the same validated v1 chart exported from the Creator. The routine's authored BPM/offset are applied to the class, and the class's 3/5/10-minute duration remains selected separately.
+- During LEARN, teach the first four and second four counts of the imported first phrase, then the full eight.
+- During REHEARSE and DANCE, play the chart's full authored phrase/repeat order, looping over it to fill the selected class duration.
+- WARM UP and COOL DOWN keep gentle built-in cues.
+- Controller tracking remains the same optional experimental Quest behavior; the anonymous class receipt indicates `imported-local-chart`, never storing title, artist, audio bytes, identity or pose history. Screen-only movement is never scored.
+- Clearing the routine restores built-in choreography. No charts persist across reloads, and no original account-backed app data is touched.
+
+## Next opportunities
+Custom transition animations, richer footwork instruction with clearly marked sensor limitations, and a full track-authoring timeline. Real Quest acceptance remains unverified.
