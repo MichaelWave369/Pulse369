@@ -51,14 +51,19 @@ export function classCue(plan, style, index) {
   if(!block)return null;
   const local=index-block.start;
   const cycle=local%8;
-  const move=block.id==='warmup' ? warmupMoves[cycle] :
-    block.id==='cooldown' ? cooldownMoves[cycle] : danceMove(style,cycle);
-  // Body mechanics are explained, never scored. For learning, teach each half
-  // of the phrase twice before full repetitions.
+  // Teach the first four counts, the next four, then the entire phrase.
   const learnStage=block.id==='learn' ? (Math.floor(local/8)%4) : -1;
-  const coach=block.id==='learn' && learnStage<2
-    ? ('BREAKDOWN '+(cycle+1)+'/8 · '+move.coach)
-    : move.coach;
+  const stepIndex=learnStage===0 ? cycle%4 :
+    learnStage===1 ? 4+cycle%4 : cycle;
+  const move=block.id==='warmup' ? warmupMoves[cycle] :
+    block.id==='cooldown' ? cooldownMoves[cycle] : danceMove(style,stepIndex);
+  const coach=block.id==='learn' && learnStage===0
+    ? ('FIRST FOUR · '+move.coach) :
+    block.id==='learn' && learnStage===1
+      ? ('SECOND FOUR · '+move.coach) :
+    block.id==='learn' && learnStage===2
+      ? ('PUT IT TOGETHER · '+move.coach) :
+    block.id==='learn' ? ('REPEAT THE EIGHT · '+move.coach) : move.coach;
   return {
     index,beat:cycle+1, phrase:Math.floor(local/8)+1,
     phase:block.id,phaseName:block.name,phaseHint:block.hint,
