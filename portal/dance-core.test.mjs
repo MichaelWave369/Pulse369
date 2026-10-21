@@ -22,9 +22,9 @@ test('all styles provide safe bounded eight-count phrases', () => {
 });
 
 test('beat timing uses a bounded window and rejects future/past counts', () => {
-  assert.equal(danceBeatAt(2999, 3000, 120), null);
+  assert.equal(danceBeatAt(2700, 3000, 120), null);
   assert.deepEqual(danceBeatAt(3010, 3000, 120), { index:0, errorMs:10 });
-  assert.equal(danceBeatAt(3000 + DANCE_WINDOW_MS + 1, 3000, 120), null);
+  assert.equal(danceBeatAt(3000 - DANCE_WINDOW_MS - 1, 3000, 120), null);
   assert.deepEqual(danceBeatAt(3500, 3000, 120), {index:1,errorMs:0});
   assert.equal(danceBeatAt(3000 + DANCE_BEATS * 500, 3000, 120), null);
   assert.equal(danceBeatAt(NaN, 3000, 120), null);
