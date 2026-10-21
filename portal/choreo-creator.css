@@ -104,3 +104,17 @@
 .creator-count{z-index:2;pointer-events:none}
 .creator-calm{display:flex;align-items:center;gap:10px;margin:18px 0 2px;padding:13px 16px;background:#102a38;border:1px solid #507a81;color:#e4f5ef;font-size:11px;font-weight:800;letter-spacing:.035em;cursor:pointer}
 .creator-calm input{accent-color:#c7f876;width:19px;height:19px}
+
+/* R4 dance director: distinct authored style and phrase direction displays. */
+.director-banner{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px 14px;margin:3px 0 12px;border:1px solid #668a88;background:linear-gradient(90deg,#1d3940,#1a2540);color:#f4faff}
+.director-banner strong{color:#c7f876;font-size:12px;font-weight:900;letter-spacing:.08em}
+.director-banner span{font-size:10px;letter-spacing:.075em;color:#adc9df;font-weight:800}
+.director-up-next{display:flex;flex-wrap:wrap;gap:9px;align-items:center;padding:12px 14px;margin:12px 0 5px;background:#253a4a;border-left:4px solid #ffa875}
+.director-up-next span{font-size:10px;letter-spacing:.08em;color:#ffa875;font-weight:900}
+.director-up-next strong{font-size:12px;color:#f3f7ff;line-height:1.6}
+.director-intensity{display:flex;align-items:center;gap:9px;flex-wrap:wrap;margin:16px 0}
+.director-intensity span{font-size:10px;color:#b9d3e4;font-weight:900;letter-spacing:.09em;margin-right:auto}
+.director-intensity button{background:#152c45;color:#e0f3ff;border:1px solid #56778d;padding:10px 12px;font-size:10px;letter-spacing:.07em;font-weight:900;cursor:pointer}
+.director-intensity button.selected{background:#c7f876;color:#14252b;border-color:#c7f876}
+.director-intensity button:focus-visible{outline:2px solid #ffffff;outline-offset:2px}
+@media(max-width:600px){.director-banner{align-items:flex-start;flex-direction:column}}
