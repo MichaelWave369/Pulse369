@@ -48,7 +48,9 @@ function Timeline(){
       const next=action(timeline);
       const nextRows=timelineRows(next);
       const i=Math.max(0,Math.min(nextSelected??chosen,nextRows.length-1));
-      setTimeline(next);setChosen(i);setScrub(nextRows[i].start);
+      const oldLocal=Math.max(0,scrub-(rows[chosen]?.start||0));
+      const preserve=(nextSelected===undefined||nextSelected===chosen)?oldLocal:0;
+      setTimeline(next);setChosen(i);setScrub(Math.min(nextRows[i].end-1,nextRows[i].start+preserve));
       setStatus(message);
     }catch(err){setStatus('Edit rejected: '+(err?.message||'Invalid operation'));}
   }
