@@ -156,6 +156,12 @@ function Timeline(){
         <section className="tl-panel tl-editor">
           <div className="tl-section-head"><h2>02 / EDIT SELECTED SECTION</h2><span>#{chosen+1} · {segment.kind.toUpperCase()}</span></div>
           <div className="tl-readout"><b>{segment.label}</b><span>COUNT {segment.start+1}–{segment.end}</span></div>
+          <label>SHOW TITLE
+            <input maxLength={64} value={timeline.show.title}
+              onChange={e=>{
+                if(e.target.value.trim())apply(t=>({...t,show:{...t.show,title:e.target.value}}),'Show title updated.',chosen);
+              }}/>
+          </label>
           <label>STAGE LOOK
             <select value={segment.stage} onChange={e=>apply(t=>updateStage(t,chosen,e.target.value),'Stage direction updated.',chosen)}>
               {Object.entries(STAGES).map(([id,s])=><option value={id} key={id}>{s.name}</option>)}
