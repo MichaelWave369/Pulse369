@@ -84,6 +84,36 @@ function Timeline(){
       setStatus('Loaded '+next.show.source.kind+' locally. No audio, camera data or uploads.');
     }catch(err){setStatus('Import rejected: '+(err?.message||'Invalid file'));}
   }
+  function restore(direction){
+    const next=direction==='undo'?undoHistory(history):redoHistory(history);
+    if(next===history)return;
+    const nextRows=proRows(next.present);
+    const i=Math.min(chosen,nextRows.length-1);
+    const offset=Math.max(0,scrub-(rows[chosen]?.start||0));
+    setHistory(next);setChosen(i);
+    setScrub(Math.min(nextRows[i].end-1,nextRows[i].start+offset));
+    setStatus((direction==='undo'?'Undid':'Redid')+' one authored editing action.');
+  }
+  useEffect(()=>{
+    const keyHandler=e=>{
+      if(!(e.ctrlKey||e.metaKey)||e.altKey)return;
+      if(e.target instanceof Element&&e.target.closest('input,textarea,select,[contenteditable="true"]'))return;
+      const key=e.key.toLowerCase();
+      const direction=key==='z'&&!e.shiftKey?'undo':
+        (key==='z'&&e.shiftKey||key==='y')?'redo':null;
+      if(!direction)return;
+      e.preventDefault();
+      const next=direction==='undo'?undoHistory(history):redoHistory(history);
+      if(next===history)return;
+      const newer=proRows(next.present),i=Math.min(chosen,newer.length-1);
+      const offset=Math.max(0,scrub-(rows[chosen]?.start||0));
+      setHistory(next);setChosen(i);
+      setScrub(Math.min(newer[i].end-1,newer[i].start+offset));
+      setStatus((direction==='undo'?'Undid':'Redid')+' one edit.');
+    };
+    window.addEventListener('keydown',keyHandler);
+    return ()=>window.removeEventListener('keydown',keyHandler);
+  },[history,chosen,scrub,rows]);
   const styleOption=STYLES.includes(newStyle)?newStyle:'groove';
   return <div className="tl-shell">
     <header className="tl-header">
@@ -102,6 +132,8 @@ function Timeline(){
         <button onClick={()=>save('pulse369-director-timeline-r9.json',encodeTimeline(timeline))}>↓ EXPORT LEGACY R9</button>
         <button onClick={()=>save('pulse369-stage-show.json',JSON.stringify(timeline.show,null,2)+'\n')}>↓ EXPORT R7 PERFORMANCE SHOW</button>
         <button onClick={()=>save('pulse369-timeline-cues.txt',proCueSheet(pro),'text/plain')}>↓ EXPORT CUE SHEET</button>
+        <button disabled={!history.past.length} title="Undo (Ctrl/Cmd+Z outside text fields)" onClick={()=>restore('undo')}>↶ UNDO ({history.past.length})</button>
+        <button disabled={!history.future.length} title="Redo (Ctrl/Cmd+Shift+Z outside text fields)" onClick={()=>restore('redo')}>↷ REDO ({history.future.length})</button>
         <button onClick={()=>{setHistory(createHistory());setChosen(0);setScrub(0);setStatus('Reset to sample workout. Undo history starts fresh.');}}>↺ RESET</button>
       </div>
       <p className="tl-status" role="status">{status}</p>
@@ -120,6 +152,10 @@ function Timeline(){
             <div className="tl-ruler-cells">{rows.map(r=><div key={r.index} className="tl-ruler-cell"
                 style={{width:Math.max(140,r.counts*scale)}}>
                 <b>{ftime(r.startSeconds)}</b><span>BEAT {r.start+1}</span>
+                <div className="tl-beat-grid" aria-label={Math.ceil(r.counts/8)+' musical eight-count groups'}>
+                  {Array.from({length:Math.ceil(r.counts/8)},(_,i)=><span key={i}
+                    className="tl-beat-bar" title={'Eight-count group '+(i+1)}>1 · 2 · 3 · 4 · 5 · 6 · 7 · 8</span>)}
+                </div>
               </div>)}</div>
           </div>
           <div className="tl-lane">
@@ -168,7 +204,7 @@ function Timeline(){
               const index=Number(e.target.value),target=rows.find(r=>index>=r.start&&index<r.end);
               setScrub(index);if(target)setChosen(target.index);
             }}/>
-          <p>No waveform, beat detection or song playback here. The ruler uses your authored BPM and offset. Use R8 Performance Studio to rehearse to a locally chosen song.</p>
+          <p>Eight-count groups and music time come from the authored BPM and offset. This is a visual beat grid, not a song waveform or automatic beat detection. Rehearse with a locally selected song in Performance Studio.</p>
         </div>
       </section>
       <div className="tl-bottom">
@@ -190,6 +226,14 @@ function Timeline(){
             <textarea rows={3} maxLength={240} value={segment.note}
               onChange={e=>apply(t=>updateProSectionNote(t,chosen,e.target.value),'Section cue note updated.',chosen)}
               placeholder="Entrance, musical accent, stage directions or rehearsal reminders…"/>
+          </label>
+          <h3>NOTES FOR THIS EXACT COUNT</h3>
+          <p className="tl-count-help">{chart?'R2 notes belong to this one of eight phrase slots, and apply each time the phrase repeats.':'R6 notes belong to this exact local count of the protected workout section.'} The current slot is <strong>{localBeat+1}</strong>.</p>
+          <label>PER-COUNT DIRECTOR NOTE (MAX 120)
+            <textarea rows={2} maxLength={120} value={beatNote}
+              onChange={e=>apply(t=>updateCountNote(t,chosen,localBeat,e.target.value),
+                'Updated authored cue note for count '+(localBeat+1)+'.',chosen)}
+              placeholder="Hit the accent, pause the arms, cue the lighting…"/>
           </label>
           {chart&&phrase?<>
             <h3>PHRASE EDITOR · EIGHT-COUNT</h3>
@@ -228,6 +272,7 @@ function Timeline(){
               {phrase.steps.map((s,i)=><button key={i} className={count===i?'active':''}
                 aria-pressed={count===i} onClick={()=>setScrub(segment.start+i)}>
                 <span>{i+1}</span><small>{s.style}</small>
+                {pro.countNotes.some(n=>n.segment===chosen&&n.beat===i)&&<i className="tl-note-dot" aria-label="This count has a director note">NOTE</i>}
               </button>)}
             </div>
             <div className="tl-two">
@@ -257,7 +302,7 @@ function Timeline(){
             <p>{display?.cue?.coach||'This is a script preview, not an assessment.'}</p>
           </div>
           <h3>TRACK CONTRACT</h3>
-          <p>This editor rearranges authored R2 hand cues and their stage direction. It does not encode foot tracking, a musical waveform, captured dancers, video, real audio, or measured fitness results. Source R6 workout intervals are read-only here.</p>
+          <p>R10 adds authored per-count notes and bounded undo/redo. Export R10 to retain beat notes; legacy R9/R7 exports intentionally omit unsupported R10 note fields. This editor rearranges authored R2 hand cues and their stage direction. It does not encode foot tracking, a musical waveform, captured dancers, video, real audio, or measured fitness results. Source R6 workout intervals are read-only here.</p>
           <p>After exporting **R7 Performance Show JSON**, open <a href="performance.html">Performance Studio</a> and import the file for actual local-music rehearsal.</p>
         </section>
       </div>
