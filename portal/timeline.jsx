@@ -1,4 +1,4 @@
-import React,{useState,useMemo} from 'react';
+import React,{useState,useMemo,useEffect} from 'react';
 import {createRoot} from 'react-dom/client';
 import {
   STAGES,starterShow,replaceSource,parseShow,buildShow,sampleShow
@@ -10,6 +10,11 @@ import {
   parseTimeline,encodeTimeline,editPhrase,editCount,updateNote,updateStage,
   timelineRows,timelineCueSheet
 } from './dance-timeline.mjs';
+import {
+  PRO_SCHEMA,parsePro,encodePro,wrapTimeline,starterPro,createHistory,
+  commitHistory,undoHistory,redoHistory,updateCountNote,
+  editProPhrase,editProCount,updateProStage,updateProSectionNote,proRows,proCueSheet
+} from './dance-timeline-pro.mjs';
 import MotionCoachFigure from './motion-coach-figure.jsx';
 import './styles.css';
 import './quest-lab.css';
@@ -26,18 +31,22 @@ const ftime=s=>{
   return Math.floor(n/60).toString().padStart(2,'0')+':'+(n%60).toFixed(2).padStart(5,'0');
 };
 function Timeline(){
-  const [timeline,setTimeline]=useState(starterTimeline);
+  const [history,setHistory]=useState(()=>createHistory());
+  const pro=history.present;
+  const timeline=pro.timeline;
   const [chosen,setChosen]=useState(0);
   const [scrub,setScrub]=useState(0);
   const [status,setStatus]=useState('Ready. Load a choreography/show or edit the sample stage cues.');
   const [newStyle,setNewStyle]=useState('groove');
   const plan=useMemo(()=>buildShow(timeline.show),[timeline]);
-  const rows=useMemo(()=>timelineRows(timeline),[timeline]);
+  const rows=useMemo(()=>proRows(pro),[pro]);
   const segment=rows[Math.min(chosen,rows.length-1)];
   const chart=timeline.show.source.kind==='chart'?timeline.show.source.data:null;
   const phrase=chart?.phrases[segment.index]||null;
   const count=phrase?Math.floor(Math.max(0,scrub-segment.start))%8:0;
   const step=phrase?.steps[count]||null;
+  const localBeat=chart?count:Math.max(0,scrub-segment.start);
+  const beatNote=pro.countNotes.find(n=>n.segment===chosen&&n.beat===localBeat)?.text||'';
   const display=sampleShow(plan,Math.min(scrub,plan.totalCounts-1));
   const scale=3.2;
   function select(i){
@@ -45,12 +54,12 @@ function Timeline(){
   }
   function apply(action,message,nextSelected){
     try{
-      const next=action(timeline);
-      const nextRows=timelineRows(next);
+      const next=action(pro);
+      const nextRows=proRows(next);
       const i=Math.max(0,Math.min(nextSelected??chosen,nextRows.length-1));
       const oldLocal=Math.max(0,scrub-(rows[chosen]?.start||0));
       const preserve=(nextSelected===undefined||nextSelected===chosen)?oldLocal:0;
-      setTimeline(next);setChosen(i);setScrub(Math.min(nextRows[i].end-1,nextRows[i].start+preserve));
+      setHistory(h=>commitHistory(h,next));setChosen(i);setScrub(Math.min(nextRows[i].end-1,nextRows[i].start+preserve));
       setStatus(message);
     }catch(err){setStatus('Edit rejected: '+(err?.message||'Invalid operation'));}
   }
@@ -61,16 +70,17 @@ function Timeline(){
     try{
       const text=await file.text(),raw=JSON.parse(text);
       let next;
-      if(raw?.schema===TIMELINE_SCHEMA)next=parseTimeline(text);
-      else if(raw?.schema==='pulse369.dance-performance.v1')next=timelineFromSource(parseShow(text));
+      if(raw?.schema===PRO_SCHEMA)next=parsePro(text);
+      else if(raw?.schema===TIMELINE_SCHEMA)next=wrapTimeline(parseTimeline(text));
+      else if(raw?.schema==='pulse369.dance-performance.v1')next=wrapTimeline(timelineFromSource(parseShow(text)));
       else if(raw?.schema==='pulse369.choreography.v1'){
         if(file.size>MAX_CHART_BYTES)throw new Error('R2 chart exceeds 64 KiB.');
-        next=timelineFromSource(replaceSource(starterShow(),'chart',parseChart(text)));
+        next=wrapTimeline(timelineFromSource(replaceSource(starterShow(),'chart',parseChart(text))));
       }else if(raw?.schema==='pulse369.dance-workout.v1'){
         if(file.size>MAX_RECIPE_BYTES)throw new Error('R6 recipe exceeds 16 KiB.');
-        next=timelineFromSource(replaceSource(starterShow(),'workout',parseWorkout(text)));
+        next=wrapTimeline(timelineFromSource(replaceSource(starterShow(),'workout',parseWorkout(text))));
       }else throw new Error('Unrecognized DanceFlow JSON format.');
-      setTimeline(next);setChosen(0);setScrub(0);
+      setHistory(createHistory(next));setChosen(0);setScrub(0);
       setStatus('Loaded '+next.show.source.kind+' locally. No audio, camera data or uploads.');
     }catch(err){setStatus('Import rejected: '+(err?.message||'Invalid file'));}
   }
@@ -81,17 +91,18 @@ function Timeline(){
       <nav><a href="performance.html">PERFORMANCE STUDIO ↗</a><a href="create.html">CHOREOGRAPHY CREATOR ↗</a><a href="workout.html">WORKOUT BUILDER ↗</a></nav>
     </header>
     <main className="tl-main">
-      <p className="tl-eyebrow">DANCEFLOW R9 / THE TIMELINE COMPOSER</p>
+      <p className="tl-eyebrow">DANCEFLOW R10 / TIMELINE PRO</p>
       <h1>DIRECT EVERY <em>COUNT.</em></h1>
-      <p className="tl-intro">Put movements, music-count positions, stage changes, and director notes on a shared timeline. Edit original R2 hand-cue choreography in eight-count phrases, then send the finished show to R8's Performance Studio. All data stays in your browser until you export it.</p>
+      <p className="tl-intro">Put movements, music-count positions, stage changes, and notes for individual counts on a shared timeline. Edit original R2 hand-cue choreography in eight-count phrases, then send the finished show to R8's Performance Studio. All data stays in your browser until you export it.</p>
       <div className="tl-toolbar">
-        <label className="tl-upload" tabIndex={0}>↑ IMPORT R2 / R6 / R7 / R9
+        <label className="tl-upload" tabIndex={0}>↑ IMPORT R2 / R6 / R7 / R9 / R10
           <input type="file" accept=".json,application/json" onChange={importFile}/>
         </label>
-        <button onClick={()=>save('pulse369-director-timeline.json',encodeTimeline(timeline))}>↓ SAVE R9 EDITING DOCUMENT</button>
+        <button onClick={()=>save('pulse369-timeline-pro.json',encodePro(pro))}>↓ SAVE R10 WITH BEAT NOTES</button>
+        <button onClick={()=>save('pulse369-director-timeline-r9.json',encodeTimeline(timeline))}>↓ EXPORT LEGACY R9</button>
         <button onClick={()=>save('pulse369-stage-show.json',JSON.stringify(timeline.show,null,2)+'\n')}>↓ EXPORT R7 PERFORMANCE SHOW</button>
-        <button onClick={()=>save('pulse369-timeline-cues.txt',timelineCueSheet(timeline),'text/plain')}>↓ EXPORT CUE SHEET</button>
-        <button onClick={()=>{setTimeline(starterTimeline());setChosen(0);setScrub(0);setStatus('Reset to sample workout.');}}>↺ RESET</button>
+        <button onClick={()=>save('pulse369-timeline-cues.txt',proCueSheet(pro),'text/plain')}>↓ EXPORT CUE SHEET</button>
+        <button onClick={()=>{setHistory(createHistory());setChosen(0);setScrub(0);setStatus('Reset to sample workout. Undo history starts fresh.');}}>↺ RESET</button>
       </div>
       <p className="tl-status" role="status">{status}</p>
       <div className="tl-stats">
@@ -102,7 +113,7 @@ function Timeline(){
         <div><span>END TIME</span><strong>{ftime(plan.durationSeconds+plan.offsetMs/1000)}</strong></div>
       </div>
       <section className="tl-tracks">
-        <div className="tl-section-head"><h2>01 / THE SHOW TIMELINE</h2><span>CLICK ANY CLIP TO SELECT · SCROLL HORIZONTALLY</span></div>
+        <div className="tl-section-head"><h2>01 / THE SHOW TIMELINE</h2><span>CLICK TO SELECT · ALT + ←/→ TO MOVE SELECTED R2 CLIP</span></div>
         <div className="tl-timeline-scroll" tabIndex={0} aria-label="Horizontal dance timeline, scroll to explore later counts">
           <div className="tl-time-ruler">
             <div className="tl-lane-label">MUSICAL CLOCK</div>
@@ -116,6 +127,14 @@ function Timeline(){
             <div className="tl-lane-clips">{rows.map(r=><button key={r.index}
               style={{width:Math.max(140,r.counts*scale)}}
               className={'tl-clip move'+(r.index===chosen?' chosen':'')}
+              onKeyDown={e=>{
+                if(chart&&e.altKey&&!e.ctrlKey&&!e.metaKey&&['ArrowLeft','ArrowRight'].includes(e.key)){
+                  e.preventDefault();
+                  const direction=e.key==='ArrowLeft'?-1:1;
+                  if(r.index+direction>=0&&r.index+direction<rows.length)
+                    apply(t=>editProPhrase(t,r.index,'move',{direction}),'Moved phrase using keyboard.',r.index+direction);
+                }
+              }}
               aria-pressed={r.index===chosen} onClick={()=>select(r.index)}>
               <span>#{r.index+1} / {r.kind.toUpperCase()}</span><strong>{r.label}</strong>
               <small>{r.counts} COUNTS · {r.durationSeconds.toFixed(1)} S</small>
@@ -138,7 +157,7 @@ function Timeline(){
               className={'tl-clip note'+(r.index===chosen?' chosen':'')}
               onClick={()=>select(r.index)}
               aria-label={'Edit director note for '+r.label}>
-              <span>CUE NOTE {r.index+1}</span><strong>{r.note||'ADD A CUE NOTE…'}</strong>
+              <span>CUE NOTE {r.index+1} · {r.noteCount} BEAT NOTES</span><strong>{r.note||'ADD A CUE NOTE…'}</strong>
             </button>)}</div>
           </div>
         </div>
@@ -159,24 +178,24 @@ function Timeline(){
           <label>SHOW TITLE
             <input maxLength={64} value={timeline.show.title}
               onChange={e=>{
-                if(e.target.value.trim())apply(t=>({...t,show:{...t.show,title:e.target.value}}),'Show title updated.',chosen);
+                if(e.target.value.trim())apply(t=>({...t,timeline:{...t.timeline,show:{...t.timeline.show,title:e.target.value}}}),'Show title updated.',chosen);
               }}/>
           </label>
           <label>STAGE LOOK
-            <select value={segment.stage} onChange={e=>apply(t=>updateStage(t,chosen,e.target.value),'Stage direction updated.',chosen)}>
+            <select value={segment.stage} onChange={e=>apply(t=>updateProStage(t,chosen,e.target.value),'Stage direction updated.',chosen)}>
               {Object.entries(STAGES).map(([id,s])=><option value={id} key={id}>{s.name}</option>)}
             </select>
           </label>
           <label>DIRECTOR'S SECTION NOTES (MAX 240)
             <textarea rows={3} maxLength={240} value={segment.note}
-              onChange={e=>apply(t=>updateNote(t,chosen,e.target.value),'Section cue note updated.',chosen)}
+              onChange={e=>apply(t=>updateProSectionNote(t,chosen,e.target.value),'Section cue note updated.',chosen)}
               placeholder="Entrance, musical accent, stage directions or rehearsal reminders…"/>
           </label>
           {chart&&phrase?<>
             <h3>PHRASE EDITOR · EIGHT-COUNT</h3>
             <label>PHRASE NAME
               <input maxLength={40} value={phrase.name}
-                onChange={e=>{if(e.target.value.trim())apply(t=>editPhrase(t,chosen,'rename',{name:e.target.value}),'Phrase renamed.',chosen);}}/>
+                onChange={e=>{if(e.target.value.trim())apply(t=>editProPhrase(t,chosen,'rename',{name:e.target.value}),'Phrase renamed.',chosen);}}/>
             </label>
             <div className="tl-two">
               <label>PHRASE REPEATS
@@ -213,7 +232,7 @@ function Timeline(){
             </div>
             <div className="tl-two">
               <label>GESTURE STYLE
-                <select value={step.style} onChange={e=>apply(t=>editCount(t,chosen,count,{style:e.target.value}),'Edited single hand cue.',chosen)}>
+                <select value={step.style} onChange={e=>apply(t=>editProCount(t,chosen,count,{style:e.target.value}),'Edited single hand cue.',chosen)}>
                   {STYLES.map(s=><option key={s} value={s}>{s.toUpperCase()}</option>)}
                 </select>
               </label>
@@ -242,7 +261,7 @@ function Timeline(){
           <p>After exporting **R7 Performance Show JSON**, open <a href="performance.html">Performance Studio</a> and import the file for actual local-music rehearsal.</p>
         </section>
       </div>
-      <footer className="tl-footer">PULSE369 · DANCE TIMELINE COMPOSER R9 · MIT · LOCAL ONLY <a href="performance.html">OPEN PERFORMANCE STUDIO ↗</a></footer>
+      <footer className="tl-footer">PULSE369 · DANCE TIMELINE PRO R10 · MIT · LOCAL ONLY <a href="performance.html">OPEN PERFORMANCE STUDIO ↗</a></footer>
     </main>
   </div>;
 }
