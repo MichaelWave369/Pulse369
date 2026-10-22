@@ -65,5 +65,7 @@ jobs:
         run: node --test portal/dance-performance.test.mjs
       - name: Dance Show Runner presets, cue-sheet, rehearsal and privacy tests
         run: node --test portal/dance-show-runner.test.mjs
+      - name: Dance Timeline Composer phrase, stage, note, privacy and roundtrip tests
+        run: node --test portal/dance-timeline.test.mjs
       - name: Worker integration checks
         run: node scripts/verify-studio.mjs
