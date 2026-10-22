@@ -80,3 +80,18 @@
 @media(max-width:1150px){.tl-bottom{grid-template-columns:1fr}.tl-stats{grid-template-columns:repeat(3,minmax(0,1fr))}.tl-stats>div:first-child{grid-column:span 3}}
 @media(max-width:720px){.tl-header{flex-direction:column;align-items:flex-start;padding:18px 4%}.tl-header nav{gap:9px}.tl-header nav a{font-size:9px}.tl-main{padding:38px 4% 65px}.tl-main h1{font-size:49px}.tl-intro{font-size:14px}.tl-stats{grid-template-columns:repeat(2,minmax(0,1fr))}.tl-stats>div:first-child{grid-column:span 2}.tl-tracks,.tl-panel{padding:14px}.tl-lane-label{min-width:110px;width:110px;font-size:9px}.tl-count-grid{grid-template-columns:repeat(4,minmax(0,1fr))}.tl-two{grid-template-columns:1fr}}
 @media(prefers-reduced-motion:reduce){.tl-shell *{scroll-behavior:auto!important;transition:none!important}}
+
+/* R10 Timeline Pro: eight-count ruler, explicit note markers, safe editing history. */
+.tl-beat-grid{display:flex;gap:4px;width:100%;overflow:hidden;margin-top:4px;min-height:16px}
+.tl-beat-bar{display:block;flex:1 1 0;min-width:22px;overflow:hidden;white-space:nowrap;
+  border-left:3px solid #c7f876;padding:3px 5px;background:linear-gradient(to right,#c7f87618,#79deff08);
+  font-size:8px!important;font-weight:900;color:#b9dce1!important;letter-spacing:.012em}
+.tl-note-dot{font-size:8px;color:#091427;font-weight:900;font-style:normal;
+  background:#c7f876;border-radius:20px;padding:2px 5px;line-height:1}
+.tl-count-help{font-size:12px;line-height:1.7;color:#bed8ec;
+  border-left:3px solid #c7f876;padding:9px 12px;background:#0a2533;margin:12px 0}
+.tl-count-help strong{color:#c7f876}
+.tl-clip.note strong{white-space:normal;display:-webkit-box;-webkit-box-orient:vertical;
+  -webkit-line-clamp:2;line-clamp:2}
+.tl-toolbar button[disabled]{border-style:dashed}
+@media(max-width:720px){.tl-beat-bar{font-size:7px!important;padding:3px 2px}}
