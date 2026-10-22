@@ -244,28 +244,28 @@ function Timeline(){
             <div className="tl-two">
               <label>PHRASE REPEATS
                 <select value={phrase.repeat}
-                  onChange={e=>apply(t=>editPhrase(t,chosen,'repeat',{repeat:Number(e.target.value)}),'Repeat count updated.',chosen)}>
+                  onChange={e=>apply(t=>editProPhrase(t,chosen,'repeat',{repeat:Number(e.target.value)}),'Repeat count updated.',chosen)}>
                   {[1,2,3,4].map(n=><option key={n} value={n}>{n}× EIGHT COUNTS</option>)}
                 </select>
               </label>
               <label>CHANGE PHRASE STYLE
                 <select value={phrase.steps[0].style}
-                  onChange={e=>apply(t=>editPhrase(t,chosen,'style',{style:e.target.value}),'Restyled eight hand cues.',chosen)}>
+                  onChange={e=>apply(t=>editProPhrase(t,chosen,'style',{style:e.target.value}),'Restyled eight hand cues.',chosen)}>
                   {STYLES.map(s=><option value={s} key={s}>{s.toUpperCase()}</option>)}
                 </select>
               </label>
             </div>
             <div className="tl-phrase-actions">
-              <button disabled={chosen===0} onClick={()=>apply(t=>editPhrase(t,chosen,'move',{direction:-1}),'Moved phrase with its lighting and notes.',chosen-1)}>← MOVE EARLIER</button>
-              <button disabled={chosen===rows.length-1} onClick={()=>apply(t=>editPhrase(t,chosen,'move',{direction:1}),'Moved phrase with its lighting and notes.',chosen+1)}>MOVE LATER →</button>
-              <button disabled={rows.length>=16} onClick={()=>apply(t=>editPhrase(t,chosen,'duplicate'),'Duplicated phrase without copying private notes.',chosen+1)}>+ DUPLICATE</button>
-              <button disabled={rows.length===1} onClick={()=>apply(t=>editPhrase(t,chosen,'delete'),'Deleted selected phrase.',Math.max(0,chosen-1))}>× DELETE</button>
+              <button disabled={chosen===0} onClick={()=>apply(t=>editProPhrase(t,chosen,'move',{direction:-1}),'Moved phrase with its lighting and notes.',chosen-1)}>← MOVE EARLIER</button>
+              <button disabled={chosen===rows.length-1} onClick={()=>apply(t=>editProPhrase(t,chosen,'move',{direction:1}),'Moved phrase with its lighting and notes.',chosen+1)}>MOVE LATER →</button>
+              <button disabled={rows.length>=16} onClick={()=>apply(t=>editProPhrase(t,chosen,'duplicate'),'Duplicated phrase without copying private notes.',chosen+1)}>+ DUPLICATE</button>
+              <button disabled={rows.length===1} onClick={()=>apply(t=>editProPhrase(t,chosen,'delete'),'Deleted selected phrase.',Math.max(0,chosen-1))}>× DELETE</button>
             </div>
             <div className="tl-add">
               <select value={styleOption} aria-label="Style for next new phrase" onChange={e=>setNewStyle(e.target.value)}>
                 {STYLES.map(s=><option value={s} key={s}>{s.toUpperCase()}</option>)}
               </select>
-              <button disabled={rows.length>=16} onClick={()=>apply(t=>editPhrase(t,chosen,'add',{style:styleOption}),'Inserted new eight-count phrase.',chosen+1)}>+ INSERT NEW PHRASE</button>
+              <button disabled={rows.length>=16} onClick={()=>apply(t=>editProPhrase(t,chosen,'add',{style:styleOption}),'Inserted new eight-count phrase.',chosen+1)}>+ INSERT NEW PHRASE</button>
             </div>
             <h3>EDIT INDIVIDUAL COUNTS</h3>
             <div className="tl-count-grid">
@@ -282,12 +282,12 @@ function Timeline(){
                 </select>
               </label>
               <label>GESTURE INDEX
-                <select value={step.moveIndex} onChange={e=>apply(t=>editCount(t,chosen,count,{moveIndex:Number(e.target.value)}),'Changed hand gesture index.',chosen)}>
+                <select value={step.moveIndex} onChange={e=>apply(t=>editProCount(t,chosen,count,{moveIndex:Number(e.target.value)}),'Changed hand gesture index.',chosen)}>
                   {Array.from({length:8},(_,i)=><option value={i} key={i}>MOVE {i+1}</option>)}
                 </select>
               </label>
             </div>
-            <label className="tl-mirror"><input type="checkbox" checked={step.mirror} onChange={e=>apply(t=>editCount(t,chosen,count,{mirror:e.target.checked}),'Mirrored hand target.',chosen)}/> MIRROR THIS GESTURE</label>
+            <label className="tl-mirror"><input type="checkbox" checked={step.mirror} onChange={e=>apply(t=>editProCount(t,chosen,count,{mirror:e.target.checked}),'Mirrored hand target.',chosen)}/> MIRROR THIS GESTURE</label>
           </>:<p className="tl-limits">R6 workout blocks are generated from the saved playlist. Stage looks and director notes are editable here, but warm-up, recovery and dance interval lengths remain governed by the R6 Workout Builder. For editable hand-gesture phrases, import an R2 choreography chart.</p>}
         </section>
         <section className="tl-panel tl-preview">
