@@ -8,6 +8,7 @@ import {
   replaceSource,changeScene,buildShow,sampleShow,performanceTrackError,showReceipt
 } from './dance-performance.mjs';
 import MotionCoachFigure from './motion-coach-figure.jsx';
+import {parseTimeline} from './dance-timeline.mjs';
 import {BUILTIN_PRESETS,builtInPreset,capturePreset,applyPreset,parsePreset,encodePreset,cueSheetRows,cueSheetText,rehearsalStart,MAX_PRESET_BYTES} from './dance-show-runner.mjs';
 import './styles.css';
 import './quest-lab.css';
@@ -77,6 +78,7 @@ function Performance(){
       let imported;
       const raw=JSON.parse(contents);
       if(raw?.schema==='pulse369.dance-performance.v1')imported=parseShow(contents);
+      else if(raw?.schema==='pulse369.dance-timeline.v1')imported=parseTimeline(contents).show;
       else if(raw?.schema==='pulse369.dance-workout.v1'){
         if(file.size>MAX_RECIPE_BYTES)throw new Error('Workout recipe exceeds its 16 KiB limit.');
         imported=replaceSource(showRef.current,'workout',parseWorkout(contents));
@@ -195,7 +197,7 @@ function Performance(){
   return <div className={'perf-shell'+(theater?' theater':'')}>
     <header className="perf-header">
       <a className="perf-logo" href="index.html">ϕ PULSE <strong>369</strong></a>
-      <nav><a href="workout.html">WORKOUT BUILDER ↗</a><a href="create.html">CHOREOGRAPHY CREATOR ↗</a><a href="academy.html">DANCE ACADEMY ↗</a></nav>
+      <nav><a href="timeline.html">TIMELINE COMPOSER ↗</a><a href="workout.html">WORKOUT BUILDER ↗</a><a href="create.html">CHOREOGRAPHY CREATOR ↗</a><a href="academy.html">DANCE ACADEMY ↗</a></nav>
     </header>
     <main className="perf-main">
       <div className="perf-heading">
@@ -205,7 +207,7 @@ function Performance(){
         </div>
         <div className="perf-head-actions">
           <button disabled={playing} onClick={()=>fileDownload('pulse369-stage-show.json',encodeShow(show))}>↓ SAVE SHOW JSON</button>
-          <label tabIndex={playing?-1:0} className="perf-upload">↑ IMPORT SHOW / R2 / R6
+          <label tabIndex={playing?-1:0} className="perf-upload">↑ IMPORT SHOW / R2 / R6 / R9
             <input type="file" accept=".json,application/json" disabled={playing} onChange={load}/>
           </label>
         </div>
