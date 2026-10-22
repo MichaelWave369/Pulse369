@@ -63,5 +63,7 @@ jobs:
         run: node --test portal/dance-workout.test.mjs
       - name: Dance Performance Studio scene, timing, import and privacy tests
         run: node --test portal/dance-performance.test.mjs
+      - name: Dance Show Runner presets, cue-sheet, rehearsal and privacy tests
+        run: node --test portal/dance-show-runner.test.mjs
       - name: Worker integration checks
         run: node scripts/verify-studio.mjs

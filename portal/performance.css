@@ -105,3 +105,46 @@
 @media(max-width:1110px){.perf-layout{grid-template-columns:1fr}.perf-visual-column{position:static}.perf-heading{align-items:flex-start;flex-direction:column}.perf-stage{height:64vw}}
 @media(max-width:700px){.perf-header{flex-direction:column;align-items:flex-start;padding:16px 4%}.perf-header nav{gap:9px}.perf-header nav a{font-size:9px}.perf-main{padding:32px 4% 60px}.perf-controls{grid-template-columns:1fr}.perf-stage{height:460px}.perf-stage-footer span{font-size:11px}.perf-stage-readout strong{font-size:11px}.perf-stage-readout small{font-size:8px}.perf-heading h1{font-size:52px}.perf-segment{grid-template-columns:1fr}.perf-figures strong{font-size:16px}}
 @media(prefers-reduced-motion:reduce){.perf-stage-backdrop,.perf-dancer{transition:none}.perf-light-beam{opacity:.18}}
+
+/* R8: intentional show operation and print-safe stage cue sheet. */
+.perf-preset-row{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:10px;align-items:end;margin:10px 0}
+.perf-preset-row button,.perf-preset-actions button,.perf-preset-import,.perf-sheet-actions button{background:#1f3851;color:#f1faff;border:1px solid #6e89aa;padding:12px 14px;font-size:10px;font-weight:900;letter-spacing:.045em;cursor:pointer}
+.perf-preset-row button{background:#c7f876;border-color:#c7f876;color:#0c1d27}
+.perf-preset-actions{display:flex;flex-wrap:wrap;gap:8px}
+.perf-preset-import{display:inline-flex;align-items:center}
+.perf-preset-import input{display:none}
+.perf-preset-import:focus-within{outline:3px solid #fff;outline-offset:2px}
+.perf-theater-controls{display:flex;gap:7px;flex-wrap:wrap;justify-content:flex-end}
+.perf-sheet{margin-top:15px}
+.perf-sheet-head{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}
+.perf-sheet-head h2{margin-bottom:9px}
+.perf-sheet-actions{display:flex;gap:8px;flex-wrap:wrap}
+.perf-sheet-meta{display:flex;justify-content:space-between;gap:10px;align-items:center;flex-wrap:wrap;border-top:1px solid #526b86;padding:13px 0;font-size:11px}
+.perf-sheet-meta strong{font-size:15px;color:#e8f5ff}
+.perf-sheet-meta span{color:#bdd6e9;font-size:10px}
+.perf-sheet-scroll{overflow:auto;max-height:310px;border:1px solid #445e7f}
+.perf-sheet table{width:100%;border-collapse:collapse;font-size:11px;text-align:left}
+.perf-sheet th{position:sticky;top:0;background:#253752;color:#c7f876;letter-spacing:.07em;font-size:10px}
+.perf-sheet th,.perf-sheet td{padding:11px 9px;border-bottom:1px solid #435978;white-space:nowrap}
+.perf-sheet tr:nth-child(even){background:#1a2942}
+.perf-sheet td:nth-child(4){white-space:normal;min-width:160px}
+.perf-sheet-limits{color:#aac4d6;font-size:9px;letter-spacing:.08em;line-height:1.7}
+.perf-shell.theater .perf-sheet{display:none}
+@media(max-width:700px){.perf-preset-row{grid-template-columns:1fr}.perf-sheet th,.perf-sheet td{padding:8px 6px;font-size:10px}.perf-stage-toolbar{align-items:flex-start;flex-direction:column}}
+@media print {
+  @page{margin:14mm;size:A4}
+  body{background:#fff!important;color:#111!important}
+  .perf-shell{background:#fff!important;color:#111!important;min-height:auto}
+  .perf-header,.perf-heading,.perf-editor,.perf-stage-wrapper,.perf-note,.perf-bottom,.perf-sheet-head .perf-sheet-actions{display:none!important}
+  .perf-shell.theater .perf-sheet,.perf-sheet{display:block!important;position:static!important}
+  .perf-visual-column{position:static!important}
+  .perf-main{padding:0!important;max-width:none!important}
+  .perf-layout{display:block!important}
+  .perf-sheet{border:0!important;background:#fff!important;margin:0!important;padding:0!important}
+  .perf-sheet h2,.perf-sheet p,.perf-sheet-meta,.perf-sheet-meta strong,.perf-sheet-meta span{color:#111!important}
+  .perf-sheet-scroll{border:0!important;max-height:none!important;overflow:visible!important}
+  .perf-sheet table{width:100%;border-collapse:collapse;font-size:10px;color:#111!important}
+  .perf-sheet th,.perf-sheet td{background:#fff!important;color:#111!important;white-space:normal!important;border-bottom:1px solid #888!important;padding:6px 5px}
+  .perf-sheet tr{break-inside:avoid}
+  .perf-sheet th{position:static!important}
+}
