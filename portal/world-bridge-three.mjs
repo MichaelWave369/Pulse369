@@ -70,7 +70,7 @@ export function createWorldVisual(pack) {
   const key=new THREE.DirectionalLight(0xc7e6ff,2);
   key.position.set(5,12,4);stage.add(key);
   let disposed=false,lastFrameSeconds=null;
-  function update(seconds,bpm=120,reducedMotion=false,eightCount=false,beatOffset=0,audioFrame=undefined,visualGain=1) {
+  function update(seconds,bpm=120,reducedMotion=false,eightCount=false,beatOffset=0,audioFrame=undefined,visualGain=1,renderTime=seconds) {
     if(!Number.isFinite(visualGain)||visualGain<0||visualGain>1.5)throw Error('Invalid visual gain');
     if(disposed)return;
     const cue=visualCueForSession(pack.show,seconds,bpm,beatOffset,eightCount);
@@ -79,8 +79,8 @@ export function createWorldVisual(pack) {
     const values=audioFrame===undefined
       ? {full:.18+signal*.6,bass:.12+signal*.7,mid:.22+signal*.38,high:.12+signal*.34,beat:signal}
       : (()=>{const frame=normalizedWorldAudio(audioFrame);return {full:frame.energy,bass:frame.bass,mid:frame.mid,high:frame.high,beat:frame.beat};})();
-    const dt=lastFrameSeconds===null?.016:Math.min(.1,Math.max(0,seconds-lastFrameSeconds));
-    lastFrameSeconds=seconds;
+    const dt=lastFrameSeconds===null?.016:Math.min(.1,Math.max(0,renderTime-lastFrameSeconds));
+    lastFrameSeconds=renderTime;
     const smooth=1-Math.exp(-dt/.14);
     for(const item of items) {
       const {data:o,mesh}=item;
