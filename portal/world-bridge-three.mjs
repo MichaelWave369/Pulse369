@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import {activeCue} from './world-bridge.mjs';
+import {visualCueForSession} from './world-visual-clock.mjs';
 
 const PALETTE = {
   outrun:{full:'#ff4ead',bass:'#ff5980',mid:'#a66eff',high:'#35faff',beat:'#ffbd75'},
@@ -69,10 +69,10 @@ export function createWorldVisual(pack) {
   const key=new THREE.DirectionalLight(0xc7e6ff,2);
   key.position.set(5,12,4);stage.add(key);
   let disposed=false;
-  function update(seconds,bpm=120,reducedMotion=false) {
+  function update(seconds,bpm=120,reducedMotion=false,eightCount=false,beatOffset=0) {
     if(disposed)return;
-    const cue=activeCue(pack.show,seconds);
-    const beatPhase=seconds*bpm/60*2*Math.PI;
+    const cue=visualCueForSession(pack.show,seconds,bpm,beatOffset,eightCount);
+    const beatPhase=Math.max(0,seconds-beatOffset)*bpm/60*2*Math.PI;
     const signal=reducedMotion?0:Math.pow(.5+.5*Math.cos(beatPhase),3);
     const values={full:.18+signal*.6,bass:.12+signal*.7,mid:.22+signal*.38,
       high:.12+signal*.34,beat:signal};
