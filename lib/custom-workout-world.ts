@@ -40,8 +40,8 @@ export class CustomWorkoutWorld {
       this.root.updateMatrixWorld(true);
     }catch(error){this.visual.dispose();throw error;}
   }
-  update(elapsedSeconds:number,bpm:number,reducedMotion:boolean,eightCount=false,beatOffset=0,audioFrame?:WorldAudioFrame|null,visualGain=1){
-    this.visual.update(Math.max(0,elapsedSeconds),bpm,reducedMotion,eightCount,beatOffset,audioFrame,visualGain);
+  update(elapsedSeconds:number,bpm:number,reducedMotion:boolean,eightCount=false,beatOffset=0,audioFrame?:WorldAudioFrame|null,visualGain=1,renderTime?:number){
+    this.visual.update(Math.max(0,elapsedSeconds),bpm,reducedMotion,eightCount,beatOffset,audioFrame,visualGain,renderTime);
   }
   dispose(){this.visual.dispose();}
 }
