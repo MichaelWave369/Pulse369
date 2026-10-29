@@ -93,7 +93,7 @@ export class PulseGame {
   const visualTime=time/1000;
   // Imported scenery reads the session clock and chosen track BPM, never gameplay/pose data.
   // R2's beats are visual approximations, not decoded live audio envelope samples.
-  if(this.customWorld)this.customWorld.update(active?Math.max(0,elapsed):visualTime,this.config.track.bpm,this.config.calm);
+  if(this.customWorld)this.customWorld.update(active?Math.max(0,elapsed):visualTime,this.config.track.bpm,this.config.calm,this.config.mode==='rave',this.config.track.offset);
   else this.world?.update(visualTime,this.config);
   if(active){this.status.elapsed=Math.max(0,elapsed);if(elapsed>=this.config.minutes*60){this.finish(true);}
    else if(elapsed<0){this.status.cue=`Starting in ${Math.ceil(-elapsed)}`;this.status.detail='Everyone starts on the same beat.';}
