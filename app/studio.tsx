@@ -8,6 +8,7 @@ import { Slider } from '@/components/ui/slider';
 import { Progress } from '@/components/ui/progress';
 import { AlertDialog, AlertDialogContent, AlertDialogHeader, AlertDialogTitle, AlertDialogDescription, AlertDialogFooter, AlertDialogCancel, AlertDialogAction } from '@/components/ui/alert-dialog';
 import GameView from './game-view';
+import {MAX_FILE_BYTES,readWorldFile,writeWorldPack,type WorldPack} from '../portal/world-bridge.mjs';
 import HeartMonitorPanel from './heart-monitor';
 import ClanHub from './clan-hub';
 import PathHub from './path-hub';
@@ -32,6 +33,11 @@ function Toggle({label,checked,onChange,disabled=false}:{label:string;checked:bo
 
 export default function Studio(){
  const [tab,setTab]=useState('studio'),[config,setConfig]=useState<Config>(DEFAULT_CONFIG),[status,setStatus]=useState(initialStatus),[ready,setReady]=useState(false),[vrAvailable,setVRAvailable]=useState(false);
+ // Local-only, bounded world shelf. This never becomes part of a room Config or a session POST.
+ const [customWorlds,setCustomWorlds]=useState<{id:string;pack:WorldPack}[]>([]);
+ const [selectedWorldId,setSelectedWorldId]=useState('');
+ const [worldMessage,setWorldMessage]=useState('Import up to three locally authored worlds. They stay in this tab unless you export a WorldPack file.');
+ const selectedWorld=customWorlds.find(w=>w.id===selectedWorldId)?.pack??null;
  const engine=useRef<PulseGame|null>(null);const [profile,setProfile]=useState<Profile|null>(null),[tracks,setTracks]=useState<Track[]>([]),[sessions,setSessions]=useState<SessionResult[]>([]),[loading,setLoading]=useState(true);
  const [error,setError]=useState(''),[busy,setBusy]=useState(''),[volume,setVolume]=useState(.55),[voice,setVoice]=useState(false),[result,setResult]=useState<SessionResult|null>(null),[saved,setSaved]=useState(false),[saveBusy,setSaveBusy]=useState(false);
  const [career,setCareer]=useState<Career>(EMPTY_CAREER),[selectedMission,setSelectedMission]=useState(''),[unlocks,setUnlocks]=useState<string[]>([]),[saveHeart,setSaveHeart]=useState(false);
@@ -52,12 +58,48 @@ export default function Studio(){
  useEffect(()=>{engine.current?.preview(config);},[config,ready]);
  useEffect(()=>{engine.current?.audio.setVolume(volume);},[volume,ready]);
  useEffect(()=>{engine.current?.setVoice(voice);},[voice,ready]);
+ useEffect(()=>{
+  if(!ready)return;
+  try {engine.current?.setCustomWorld(room?null:selectedWorld);}
+  catch(e){setWorldMessage(e instanceof Error?e.message:'Could not load your world; using the built-in stage.');}
+ },[ready,selectedWorld,room?.id]);
  const onReady=useCallback((g:PulseGame|null)=>{engine.current=g;setReady(!!g);if(g){g.preview(configRef.current);g.audio.setVolume(volumeRef.current);}},[configRef,volumeRef]);
  async function action(key:string,fn:()=>Promise<unknown>){setBusy(key);setError('');try{await fn();}catch(e){setError(e instanceof Error?e.message:'Please try again.');}finally{setBusy('');}}
  async function saveSession(r:SessionResult){setSaveBusy(true);try{const body={...r,save_heart_rate:saveHeartRef.current,share_clan_progress:!!r.clan_id};let d:{session:SessionResult;career:Career};try{d=await api('sessions','POST',body);}catch(e){if(r.clan_id&&e instanceof RequestError&&e.status===403){d=await api('sessions','POST',{...body,clan_id:null,share_clan_progress:false});setContribution('');setError('Your clan membership changed. This workout was saved privately.');}else throw e;}if(resultRef.current?.id===r.id){setSaved(true);setResult(d.session);resultRef.current=d.session;}setUnlocks(d.career.awards.filter(a=>!careerRef.current.awards.some(x=>x.id===a.id)).map(a=>a.id));setCareer(d.career);careerRef.current=d.career;setSessions(prev=>[d.session,...prev.filter(s=>s.id!==r.id)]);}catch(e){if(resultRef.current?.id===r.id)setSaved(false);setError(e instanceof Error?e.message:'Your session has not been saved.');}finally{if(resultRef.current?.id===r.id)setSaveBusy(false);}}
  const onFinish=useCallback((raw:SessionResult)=>{const liveRoom=roomRef.current,run=liveRoom?.run_id;const r={...raw,hr_summary:saveHeartRef.current?raw.hr_summary:null,room_id:run?liveRoom?.id:null,run_id:run??null,mission_id:raw.mission_id??missionRef.current??null,clan_id:contributionRef.current||null};contributionRef.current='';setContribution('');resultRef.current=r;setResult(r);setSaved(false);if(run)completedRuns.current.add(run);if(profileRef.current)void saveSession(r);},[]);
  const startSolo=()=>action('start',async()=>{if(!engine.current)throw new Error('Your stage is still starting.');setResult(null);setSaved(false);startedRun.current='';await engine.current.start(config);});
  const enterVR=()=>{setError('');if(!engine.current)return;if(room&&!armed){setError('Enable audio and mark ready in your room before entering VR.');return;}void engine.current.enterVR(config,!room).catch(e=>setError(e.message));};
+ async function importCustomWorld(event:React.ChangeEvent<HTMLInputElement>){
+  const file=event.currentTarget.files?.[0];
+  event.currentTarget.value='';
+  if(!file||active||room)return;
+  try{
+   if(!file.name.toLowerCase().endsWith('.json'))throw Error('Choose a Domistika JSON export.');
+   if(file.size>MAX_FILE_BYTES)throw Error('World JSON must be under 2.25 MB.');
+   if(customWorlds.length>=3)throw Error('Your three local slots are full. Remove a world or export one first.');
+   const next=readWorldFile(await file.text()); // Reuses R1 validation; never fetch or execute.
+   if(!next.workshop.objects.length)throw Error('Choose a Domistika world with at least one 3D object.');
+   const id=crypto.randomUUID();
+   setCustomWorlds(worlds=>[...worlds,{id,pack:next}]);
+   setSelectedWorldId(id);
+   setWorldMessage('Loaded '+next.title+' · '+next.workshop.objects.length+' objects. Private to this tab.');
+  }catch(e){setWorldMessage('Import rejected: '+(e instanceof Error?e.message:'Unknown file error'));}
+ }
+ function exportCustomWorld(){
+  if(!selectedWorld)return;
+  try{
+   const url=URL.createObjectURL(new Blob([writeWorldPack(selectedWorld)],{type:'application/json'}));
+   const a=document.createElement('a');a.href=url;a.download='pulse369-worldpack-v1.json';a.click();
+   window.setTimeout(()=>URL.revokeObjectURL(url),1000);
+   setWorldMessage('WorldPack downloaded. Keep this file to reuse the world next time.');
+  }catch(e){setWorldMessage(e instanceof Error?e.message:'World export failed.');}
+ }
+ function removeCustomWorld(){
+  if(!selectedWorldId||active||room)return;
+  setCustomWorlds(worlds=>worlds.filter(w=>w.id!==selectedWorldId));
+  setSelectedWorldId('');
+  setWorldMessage('Removed from this tab. Your original downloaded files were not changed.');
+ }
  function changeConfig(patch:Partial<Config>){if(active||room)return;setConfig(c=>({...c,...patch,presetId:undefined,...(patch.mode&&patch.mode!==c.mode?{journeyId:undefined,journeyStep:undefined}:{})}));setResult(null);}
  function choosePreset(p:Preset){if(active||room)return;setConfig(c=>({...applyPreset(c,p),track:c.track.demo?(isActive(p.mode)?DEMOS[0]:DEMOS[2]):c.track}));setSelectedMission('');setResult(null);setUnlocks([]);setTab('studio');}
  async function chooseMission(m:Mission){if(active||room)return;await action('mission',async()=>{const d=await api<{career:Career}>('missions/'+m.id,'POST');setCareer(d.career);setSelectedMission(m.id);const preset=PRESETS.find(p=>p.id===m.preset)!;setConfig(c=>({...applyPreset(c,preset),missionId:m.id,track:c.track.demo?(isActive(preset.mode)?DEMOS[0]:DEMOS[2]):c.track}));setTab('studio');setResult(null);setUnlocks([]);});}
@@ -115,7 +157,7 @@ export default function Studio(){
     <div className="studio-grid">
      <section className="stage" aria-label="Workout stage">
       <GameView onReady={onReady} onStatus={setStatus} onFinish={onFinish} onError={setError}/>
-      <div className="stage-top"><div><p className="eyebrow" style={{color:'#d7c0fb'}}>{WORLDS.find(w=>w.id===(config.world??'temple'))?.title}</p><h2 className="stage-title">{mode.title}</h2><p className="stage-caption">{active?status.cue:mode.cue}</p></div><div className="stat-float"><strong>{active?clock(Math.max(0,config.minutes*60-status.elapsed)):`${config.minutes}:00`}</strong><span>{active?`${status.score.toLocaleString()} pts · ${status.combo} combo`:'Your next session'}</span>{active&&status.stage&&<span className="phase-label">{status.stage}{status.phaseRemaining?' · '+clock(status.phaseRemaining):''}</span>}</div></div>
+      <div className="stage-top"><div><p className="eyebrow" style={{color:'#d7c0fb'}}>{!room&&selectedWorld?selectedWorld.title:WORLDS.find(w=>w.id===(config.world??'temple'))?.title}</p><h2 className="stage-title">{mode.title}</h2><p className="stage-caption">{active?status.cue:mode.cue}</p></div><div className="stat-float"><strong>{active?clock(Math.max(0,config.minutes*60-status.elapsed)):`${config.minutes}:00`}</strong><span>{active?`${status.score.toLocaleString()} pts · ${status.combo} combo`:'Your next session'}</span>{active&&status.stage&&<span className="phase-label">{status.stage}{status.phaseRemaining?' · '+clock(status.phaseRemaining):''}</span>}</div></div>
       {config.coach!=='none'&&<div className="coach-ticker"><Sparkles size={16}/><div><strong>{active?status.coachCue:COACHES.find(c=>c.id===config.coach)?.name+' is ready'}</strong><p>{active?status.coachDetail:'Your coach demonstrates the moves. Follow at your own pace.'}</p></div></div>}
       {!isActive(config.mode)&&status.phase==='playing'&&<div className="recover-guide">{movement&&<div className="movement-progress"><span>Movement {movement.step} / {movement.total} · {Math.ceil(movement.remaining)} sec</span><Progress className="progress" value={(30-movement.remaining)/30*100} aria-label="Current movement progress"/></div>}<h2>{status.cue}</h2><p>{status.detail}</p></div>}
       {isActive(config.mode)&&status.phase==='playing'&&!status.vr&&<div className="touch-controls">{['A','S','K','L'].map((key,i)=><button key={key} aria-label={`${i<2?'Left':'Right'} ${i%2===0?'high':'low'} target`} onPointerDown={e=>{e.preventDefault();engine.current?.hitLane(i);}}>{key}</button>)}</div>}
@@ -123,7 +165,18 @@ export default function Studio(){
      </section>
      <aside className="card config"><h2>Your session <Settings2 size={16} style={{float:'right',color:'var(--muted)'}}/></h2><Picker label="Soundtrack" value={config.track.id} options={allTracks.map(t=>({value:t.id,label:t.title}))} onChange={id=>changeConfig({track:allTracks.find(t=>t.id===id)!})} disabled={active||!!room}/><div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:12}}><Picker label="Duration" value={String(config.minutes)} options={DURATIONS.map(m=>({value:String(m),label:m+' minutes'}))} onChange={v=>changeConfig({minutes:Number(v)})} disabled={active||!!room}/><Picker label="Pace" value={config.difficulty} options={[{value:'easy',label:'Easy'},{value:'steady',label:'Steady'},{value:'intense',label:'Intense'}]} onChange={v=>changeConfig({difficulty:v as Config['difficulty']})} disabled={active||!!room||!isActive(config.mode)}/></div>{config.mode==='breathe'&&<Picker label="Breathing pattern" value={config.noHold?'gentle':'369'} options={[{value:'gentle',label:'Gentle · 3 in / 6 out'},{value:'369',label:'369 · 3 in / 6 hold / 9 out'}]} onChange={v=>changeConfig({noHold:v==='gentle'})} disabled={active||!!room}/>}
       {config.mode==='rave'&&<><Picker label="Dance style" value={config.raveStyle??'free'} options={RAVE_STYLES.map(s=>({value:s.id,label:s.title}))} onChange={v=>changeConfig({raveStyle:v as Config['raveStyle']})} disabled={active||!!room}/><p className="music-rule">{RAVE_STYLES.find(s=>s.id===(config.raveStyle??'free'))?.description}</p></>}
-      <Picker label="Environment" value={config.world??'temple'} options={WORLDS.map(w=>({value:w.id,label:w.title}))} onChange={v=>changeConfig({world:v as Config['world']})} disabled={active||!!room}/><Picker label="Your coach" value={config.coach??'nova'} options={[...COACHES.map(c=>({value:c.id,label:c.name+' · '+c.role})),{value:'none',label:'Solo · no coach'}]} onChange={v=>changeConfig({coach:v as Config['coach']})} disabled={active||!!room}/><Picker label="Session plan" value={config.program??'flow'} options={PROGRAMS.map(p=>({value:p.id,label:p.title}))} onChange={v=>changeConfig({program:v as Config['program']})} disabled={active||!!room||!isActive(config.mode)}/><p className="music-rule">{PROGRAMS.find(p=>p.id===config.program)?.description}</p><Picker label="Virtual partners" value={String(config.companions??2)} options={[{value:'0',label:'Just me and my coach'},{value:'1',label:'Echo · 1 partner'},{value:'2',label:'Echo & Sol · 2 partners'}]} onChange={v=>changeConfig({companions:Number(v)})} disabled={active||!!room}/><Toggle label="Seated movement" checked={config.seated} onChange={v=>changeConfig({seated:v})} disabled={active||!!room}/><Toggle label="Lower visual motion" checked={config.calm} onChange={v=>changeConfig({calm:v})} disabled={active||!!room}/><Toggle label="Spoken coach cues" checked={voice} onChange={setVoice}/><div className="volume"><Volume2 size={16}/><Slider value={[volume*100]} min={0} max={100} step={1} onValueChange={v=>setVolume(v[0]/100)} aria-label="Music volume"/></div>
+      <Picker label="Environment" value={!room&&selectedWorld?'custom:'+selectedWorldId:config.world??'temple'} options={[...WORLDS.map(w=>({value:w.id,label:w.title})),...(!room?customWorlds.map(w=>({value:'custom:'+w.id,label:'Domistika · '+w.pack.title})):[])]} onChange={v=>{if(v.startsWith('custom:'))setSelectedWorldId(v.slice(7));else{setSelectedWorldId('');changeConfig({world:v as Config['world']});}}} disabled={active||!!room}/>
+      <div className="field" style={{marginTop:14,padding:12,border:'1px solid var(--border)',borderRadius:9}}>
+       <label htmlFor="custom-world-file">World Forge · local world shelf ({customWorlds.length}/3)</label>
+       <input id="custom-world-file" type="file" accept=".json,application/json" disabled={active||!!room||customWorlds.length>=3} onChange={e=>void importCustomWorld(e)} aria-describedby="worldforge-note" style={{maxWidth:'100%'}}/>
+       <p id="worldforge-note" className="music-rule" role="status">{room?'Shared rooms display built-in worlds. Local scenery is not sent to peers.':worldMessage}</p>
+       <div className="buttons" style={{marginTop:8,flexWrap:'wrap'}}>
+        <button className="btn small" disabled={!selectedWorld||!!room} onClick={exportCustomWorld}>Export WorldPack</button>
+        <button className="btn small ghost" disabled={!selectedWorld||active||!!room} onClick={removeCustomWorld}>Remove local world</button>
+        <a className="btn small ghost" href="https://michaelwave369.github.io/Domistika/xr.html" target="_blank" rel="noreferrer">Create in DomistikaXR</a>
+       </div>
+       <p className="music-rule">Imported scenes decorate solo workouts only. They use session BPM for visual motion, not live audio frequencies. Lower visual motion works here too.</p>
+      </div><Picker label="Your coach" value={config.coach??'nova'} options={[...COACHES.map(c=>({value:c.id,label:c.name+' · '+c.role})),{value:'none',label:'Solo · no coach'}]} onChange={v=>changeConfig({coach:v as Config['coach']})} disabled={active||!!room}/><Picker label="Session plan" value={config.program??'flow'} options={PROGRAMS.map(p=>({value:p.id,label:p.title}))} onChange={v=>changeConfig({program:v as Config['program']})} disabled={active||!!room||!isActive(config.mode)}/><p className="music-rule">{PROGRAMS.find(p=>p.id===config.program)?.description}</p><Picker label="Virtual partners" value={String(config.companions??2)} options={[{value:'0',label:'Just me and my coach'},{value:'1',label:'Echo · 1 partner'},{value:'2',label:'Echo & Sol · 2 partners'}]} onChange={v=>changeConfig({companions:Number(v)})} disabled={active||!!room}/><Toggle label="Seated movement" checked={config.seated} onChange={v=>changeConfig({seated:v})} disabled={active||!!room}/><Toggle label="Lower visual motion" checked={config.calm} onChange={v=>changeConfig({calm:v})} disabled={active||!!room}/><Toggle label="Spoken coach cues" checked={voice} onChange={setVoice}/><div className="volume"><Volume2 size={16}/><Slider value={[volume*100]} min={0} max={100} step={1} onValueChange={v=>setVolume(v[0]/100)} aria-label="Music volume"/></div>
       <div className="config-foot"><p className="eyebrow">IN YOUR HEADPHONES</p><div className="track-mini"><div className="album-icon"><Music2 size={20}/></div><div className="track-label"><strong className="truncate">{config.track.title}</strong><span>{config.track.bpm} BPM · {config.track.demo?'Original practice beat':'Your upload'}</span></div><button className="btn small ghost" aria-label="Open music library" disabled={active} onClick={()=>setTab('music')}><Plus size={17}/></button></div><p className="music-rule" style={{marginTop:13}}>Your track loops until the session ends.</p></div>
      </aside>
     </div>

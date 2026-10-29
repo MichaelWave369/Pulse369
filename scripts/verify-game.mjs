@@ -8,7 +8,8 @@ import ts from 'typescript';
 const require=createRequire(import.meta.url),temp=await fs.mkdtemp(path.join(os.tmpdir(),'pulse-game-'));
 let checks=0;const check=(condition,message)=>{assert.ok(condition,message);checks++;};
 try{
- for(const name of ['pulse','audio','training','journeys','coaching','worlds','companions','heart-rate','clans','custom-missions','game-engine']){const source=await fs.readFile('lib/'+name+'.ts','utf8');let code=ts.transpileModule(source,{compilerOptions:{target:ts.ScriptTarget.ES2022,module:ts.ModuleKind.ESNext}}).outputText;code=code.replace(/from '(\.\/[\w-]+)'/g,"from '$1.mjs'").replaceAll("from 'three'","from '"+pathToFileURL(path.join(path.dirname(require.resolve('three')),'three.module.js')).href+"'");await fs.writeFile(path.join(temp,name+'.mjs'),code);}
+ for(const name of ['pulse','audio','training','journeys','coaching','worlds','custom-workout-world','companions','heart-rate','clans','custom-missions','game-engine']){const source=await fs.readFile('lib/'+name+'.ts','utf8');let code=ts.transpileModule(source,{compilerOptions:{target:ts.ScriptTarget.ES2022,module:ts.ModuleKind.ESNext}}).outputText;code=code.replace(/from '(\.\/[\w-]+)'/g,"from '$1.mjs'").replaceAll("from 'three'","from '"+pathToFileURL(path.join(path.dirname(require.resolve('three')),'three.module.js')).href+"'");code=code.replace(/from '\.\.\/portal\/([^']+)'/g,(_,asset)=>"from '"+pathToFileURL(path.resolve('portal',asset)).href+"'");
+ await fs.writeFile(path.join(temp,name+'.mjs'),code);}
  const {DEFAULT_CONFIG,makeChart,recoveryCue,clock,weekStats,sessionPhase,DURATIONS,mindfulHands,movementProgress,MODES,isActive,danceCue}=await import(pathToFileURL(path.join(temp,'pulse.mjs')).href);
  const {JOURNEYS,journeyPresets,qualifiesJourneyStep,nextJourneyPreset}=await import(pathToFileURL(path.join(temp,'journeys.mjs')).href);
  const {coachDebrief}=await import(pathToFileURL(path.join(temp,'coaching.mjs')).href);
@@ -17,6 +18,15 @@ try{
  const {parseHeartRate,HeartAccumulator,HeartMonitor}=await import(pathToFileURL(path.join(temp,'heart-rate.mjs')).href);
  const {matchesActivity,customMissionProgress,customMissionPreset}=await import(pathToFileURL(path.join(temp,'custom-missions.mjs')).href);
  const {PulseGame}=await import(pathToFileURL(path.join(temp,'game-engine.mjs')).href);
+ const {fitWorldBackdrop}=await import(pathToFileURL(path.resolve('portal/world-stage-layout.mjs')).href);
+ const {SAMPLE_WORLD,readWorldFile,writeWorldPack}=await import(pathToFileURL(path.resolve('portal/world-bridge.mjs')).href);
+ const {visualCueForSession}=await import(pathToFileURL(path.resolve('portal/world-visual-clock.mjs')).href);
+ check(visualCueForSession(SAMPLE_WORLD.show,4,120,0,true).title==='Flow','Rave visual scenes change at eight-count boundaries.');
+ const fitted=fitWorldBackdrop({min:[-80,-20,-40],max:[80,20,40]});
+ check(fitted.width<=24&&fitted.height<=12&&fitted.depth<=12&&fitted.maxZ<=-14,'Imported worlds fit behind the scoring target corridor.');
+ const roundtrip=readWorldFile(writeWorldPack(SAMPLE_WORLD));
+ check(roundtrip.workshop.objects.length===9&&roundtrip.schema==='pulse369.worldpack.v1','Validated local WorldPack survives import/export without server state.');
+ check(!Object.hasOwn(DEFAULT_CONFIG,'customWorld')&&!Object.hasOwn(DEFAULT_CONFIG,'worldPack'),'Untrusted imported scene bytes never enter the shared room config.');
  const a=makeChart(DEFAULT_CONFIG),b=makeChart({...DEFAULT_CONFIG});check(JSON.stringify(a)===JSON.stringify(b),'Room peers generate identical target charts.');
  check(a.length>100&&a.every(n=>n.time>=3&&n.time<180&&n.lane>=0&&n.lane<=3),'Targets have bounded timing and reach.');
  check(makeChart({...DEFAULT_CONFIG,seed:370}).some((n,i)=>n.lane!==a[i].lane),'Changing a room seed produces a different routine.');
