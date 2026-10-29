@@ -39,8 +39,8 @@ export class CustomWorkoutWorld {
       this.root.updateMatrixWorld(true);
     }catch(error){this.visual.dispose();throw error;}
   }
-  update(elapsedSeconds:number,bpm:number,reducedMotion:boolean){
-    this.visual.update(Math.max(0,elapsedSeconds),bpm,reducedMotion);
+  update(elapsedSeconds:number,bpm:number,reducedMotion:boolean,eightCount=false,beatOffset=0){
+    this.visual.update(Math.max(0,elapsedSeconds),bpm,reducedMotion,eightCount,beatOffset);
   }
   dispose(){this.visual.dispose();}
 }
