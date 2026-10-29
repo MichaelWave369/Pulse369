@@ -1,0 +1,30 @@
+.wf-shell{min-height:100vh;background:radial-gradient(ellipse at 75% 0%,#233a57,#071220 58%);color:#eaf4ff;font-family:system-ui,sans-serif}
+.wf-header{max-width:1400px;margin:auto;padding:22px 5%;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid #354a63;gap:20px}
+.wf-header a{color:#dbe7f5;text-decoration:none}.wf-header nav{display:flex;gap:22px;font-size:12px;font-weight:800;letter-spacing:.08em;flex-wrap:wrap}
+.wf-brand{font-size:21px;font-weight:900;letter-spacing:.08em}.wf-brand strong,.wf-main h1 em{color:#c7f876}
+.wf-main{max-width:1400px;margin:auto;padding:68px 5% 100px}.wf-eyebrow{color:#c7f876;font-size:12px;font-weight:800;letter-spacing:.2em}
+.wf-main h1{font-size:clamp(58px,10vw,122px);letter-spacing:-.08em;line-height:1;margin:16px 0 24px}.wf-main h1 em{font-style:normal}
+.wf-intro{max-width:1000px;color:#b8cddd;line-height:1.8;font-size:16px;margin:0 0 38px}.wf-intro strong{color:#fff}
+.wf-layout{display:grid;grid-template-columns:minmax(0,1.3fr) minmax(290px,.7fr);gap:20px}
+.wf-card{min-width:0;background:#142239;border:1px solid #39516b;padding:25px}
+.wf-card h2{color:#c7f876;font-size:12px;letter-spacing:.13em;margin:0 0 16px}.wf-card h2:not(:first-child){margin-top:32px}
+.wf-bar{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;margin-bottom:15px}
+.wf-bar strong{font-size:19px}.wf-bar span{color:#91b6c4;font-size:10px;font-weight:800;letter-spacing:.11em}
+.wf-canvas{height:min(55vw,530px);min-height:320px;max-height:530px;background:#071220;border:1px solid #49637e;position:relative;overflow:hidden}
+.wf-canvas canvas{display:block;width:100%;height:100%}.wf-caption{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;padding:16px 0;font-size:12px;color:#a9c7db}
+.wf-caption strong{color:#eaf7ff}.wf-minor{font-size:12px;line-height:1.7;color:#b1c5d9}
+.wf-upload{position:relative;display:block;text-align:center;background:#c7f876;color:#0d1a2b;font-size:12px;font-weight:900;letter-spacing:.05em;padding:17px 12px;cursor:pointer}
+.wf-upload:focus-within{outline:3px solid white;outline-offset:3px}.wf-upload input{position:absolute;inset:0;width:100%;height:100%;opacity:0;cursor:pointer}
+.wf-upload:has(input:disabled){opacity:.5;cursor:not-allowed}
+.wf-actions{display:flex;gap:10px;flex-wrap:wrap;margin:16px 0}.wf-actions button{background:transparent;border:1px solid #6487a0;color:#f0f9ff;padding:13px;font-size:11px;font-weight:800;cursor:pointer;letter-spacing:.04em}
+.wf-actions .wf-primary{background:#c7f876;border-color:#c7f876;color:#0d1a2b}.wf-actions button:disabled{opacity:.45;cursor:not-allowed}
+.wf-actions button:focus-visible,.wf-check input:focus-visible,.wf-field input:focus-visible{outline:3px solid #c7f876;outline-offset:3px}
+.wf-status{background:#0c1a2b;border-left:3px solid #c7f876;padding:13px;color:#cde1ee;line-height:1.6;font-size:12px;overflow-wrap:anywhere;min-height:52px}
+.wf-field{display:block;color:#d4e8ef;font-weight:800;font-size:12px;letter-spacing:.07em;margin-top:15px}
+.wf-field strong{float:right;color:#c7f876}.wf-field input{width:100%;margin-top:15px;accent-color:#c7f876}
+.wf-check{display:flex;align-items:center;gap:10px;color:#d4e8ef;font-size:13px;margin-top:16px}.wf-check input{width:18px;height:18px;accent-color:#c7f876}
+.wf-how{display:grid;grid-template-columns:repeat(3,1fr);gap:15px;margin-top:22px}.wf-how div{border:1px solid #354c68;background:#102138;padding:20px;display:grid;gap:10px}
+.wf-how b{font-size:12px;color:#c7f876;letter-spacing:.1em}.wf-how span{font-size:12px;color:#c2d3e2;line-height:1.6}
+.wf-footer{font-size:12px;line-height:1.8;color:#91aabd;margin-top:38px}.wf-footer a{color:#c7f876}
+@media(max-width:900px){.wf-layout{grid-template-columns:1fr}.wf-how{grid-template-columns:1fr}.wf-canvas{height:55vh}.wf-header,.wf-main{padding-left:20px;padding-right:20px}}
+@media(max-width:520px){.wf-header{align-items:flex-start;flex-direction:column}.wf-card{padding:17px}.wf-main{padding-top:48px}.wf-canvas{min-height:280px;height:45vh}}
