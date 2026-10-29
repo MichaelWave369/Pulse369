@@ -103,12 +103,12 @@ export class PulseGame {
   // The data is visual-only; the scoring clock/targets and audio graph stay authoritative.
   if(this.customWorld){
     const seconds=active?Math.max(0,elapsed):Math.max(0,this.status.elapsed);
-    const input=this.worldAudioMode==='tempo'?undefined:
+    const input=this.worldAudioMode==='tempo'&&active&&elapsed>=0?undefined:
       this.worldAudioMode==='live'&&active&&elapsed>=0?this.audio.sampleVisualFrame():
       {energy:0,bass:0,mid:0,high:0,beat:0};
     this.customWorld.update(seconds,this.config.track.bpm,
       this.config.calm||this.worldAudioMode==='still',this.config.mode==='rave',
-      this.config.track.offset,input,this.worldVisualGain);
+      this.config.track.offset,input,this.worldVisualGain,visualTime);
   }
   else this.world?.update(visualTime,this.config);
   if(active){this.status.elapsed=Math.max(0,elapsed);if(elapsed>=this.config.minutes*60){this.finish(true);}
