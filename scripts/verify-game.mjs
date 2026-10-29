@@ -18,10 +18,33 @@ try{
  const {parseHeartRate,HeartAccumulator,HeartMonitor}=await import(pathToFileURL(path.join(temp,'heart-rate.mjs')).href);
  const {matchesActivity,customMissionProgress,customMissionPreset}=await import(pathToFileURL(path.join(temp,'custom-missions.mjs')).href);
  const {PulseGame}=await import(pathToFileURL(path.join(temp,'game-engine.mjs')).href);
+ const {PulseAudio}=await import(pathToFileURL(path.join(temp,'audio.mjs')).href);
  const {fitWorldBackdrop}=await import(pathToFileURL(path.resolve('portal/world-stage-layout.mjs')).href);
  const {SAMPLE_WORLD,readWorldFile,writeWorldPack}=await import(pathToFileURL(path.resolve('portal/world-bridge.mjs')).href);
  const {visualCueForSession}=await import(pathToFileURL(path.resolve('portal/world-visual-clock.mjs')).href);
  check(visualCueForSession(SAMPLE_WORLD.show,4,120,0,true).title==='Flow','Rave visual scenes change at eight-count boundaries.');
+ const {spectrumBands,ZERO_WORLD_AUDIO}=await import(pathToFileURL(path.resolve('portal/world-audio-frame.mjs')).href);
+ const {assignObjectBand}=await import(pathToFileURL(path.resolve('portal/world-director.mjs')).href);
+ const bins=new Uint8Array(1024);bins[Math.round(100*2048/48000)]=230;
+ check(spectrumBands(bins,48000,2048).bass>0,'R3 live FFT produces a real bass envelope from existing audio bins.');
+ const directed=assignObjectBand(SAMPLE_WORLD,SAMPLE_WORLD.workshop.objects[0].id,'mid');
+ check(directed.workshop.objects[0].motion.band==='mid'&&SAMPLE_WORLD.workshop.objects[0].motion.band!=='mid',
+   'R3 per-object visual director keeps the original world unchanged.');
+ const audio=new PulseAudio();let audioConnected=null,audioStops=0;
+ audio.context={state:'running',sampleRate:48000,currentTime:10,createBufferSource(){return {
+   connect(node){audioConnected=node;},start(){},stop(){audioStops++;},disconnect(){}};}};
+ audio.gain={};audio.analyser={fftSize:2048,getByteFrequencyData(data){data.fill(0);data[Math.round(100*2048/48000)]=230;}};
+ audio.frequencyBins=new Uint8Array(1024);audio.cache.set('world-test',{duration:15});
+ audio.setAnalysisEnabled(true);audio.play({id:'world-test'},0);
+ const sampled=audio.sampleVisualFrame();
+ check(audioConnected===audio.analyser&&sampled.bass>0&&sampled.mid===0,
+   'PulseAudio routes ONE original music source through FFT to the original gain.');
+ audio.stop();
+ check(audioStops===1&&JSON.stringify(audio.sampleVisualFrame())===JSON.stringify(ZERO_WORLD_AUDIO),
+   'Stopping song playback cancels FFT samples and reactive light energy.');
+ audio.setAnalysisEnabled(false);
+ check(JSON.stringify(audio.sampleVisualFrame())===JSON.stringify(ZERO_WORLD_AUDIO),
+   'Switching to a native environment disables visual audio analysis.');
  const fitted=fitWorldBackdrop({min:[-80,-20,-40],max:[80,20,40]});
  check(fitted.width<=24&&fitted.height<=12&&fitted.depth<=12&&fitted.maxZ<=-14,'Imported worlds fit behind the scoring target corridor.');
  const roundtrip=readWorldFile(writeWorldPack(SAMPLE_WORLD));
