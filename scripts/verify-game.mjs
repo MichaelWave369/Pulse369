@@ -20,6 +20,8 @@ try{
  const {PulseGame}=await import(pathToFileURL(path.join(temp,'game-engine.mjs')).href);
  const {fitWorldBackdrop}=await import(pathToFileURL(path.resolve('portal/world-stage-layout.mjs')).href);
  const {SAMPLE_WORLD,readWorldFile,writeWorldPack}=await import(pathToFileURL(path.resolve('portal/world-bridge.mjs')).href);
+ const {visualCueForSession}=await import(pathToFileURL(path.resolve('portal/world-visual-clock.mjs')).href);
+ check(visualCueForSession(SAMPLE_WORLD.show,4,120,0,true).title==='Flow','Rave visual scenes change at eight-count boundaries.');
  const fitted=fitWorldBackdrop({min:[-80,-20,-40],max:[80,20,40]});
  check(fitted.width<=24&&fitted.height<=12&&fitted.depth<=12&&fitted.maxZ<=-14,'Imported worlds fit behind the scoring target corridor.');
  const roundtrip=readWorldFile(writeWorldPack(SAMPLE_WORLD));
