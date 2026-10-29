@@ -1,4 +1,5 @@
 import { DEMOS, type Track } from './pulse';
+import {spectrumBands,createTransientGate,ZERO_WORLD_AUDIO,type WorldAudioFrame} from '../portal/world-audio-frame.mjs';
 
 export function estimateBpm(buffer:AudioBuffer):number {
  const data=buffer.getChannelData(0),hop=Math.floor(buffer.sampleRate/100),length=Math.min(data.length,buffer.sampleRate*60);
@@ -11,8 +12,37 @@ export function estimateBpm(buffer:AudioBuffer):number {
 
 export class PulseAudio {
  context:AudioContext|null=null;gain:GainNode|null=null;source:AudioBufferSourceNode|null=null;
+ private analyser:AnalyserNode|null=null;private frequencyBins:Uint8Array<ArrayBuffer>|null=null;
+ private readonly transients=createTransientGate();private analysisEnabled=false;
  private cache=new Map<string,AudioBuffer>();private loads=new Map<string,Promise<AudioBuffer>>();volume=.55;
- unlock(){if(!this.context){this.context=new AudioContext();this.gain=this.context.createGain();this.gain.gain.value=this.volume;this.gain.connect(this.context.destination);}return this.context.resume();}
+ unlock(){if(!this.context){
+   this.context=new AudioContext();this.gain=this.context.createGain();
+   this.gain.gain.value=this.volume;this.gain.connect(this.context.destination);
+   try {
+     this.analyser=this.context.createAnalyser();this.analyser.fftSize=2048;
+     this.analyser.smoothingTimeConstant=.72;this.analyser.minDecibels=-90;this.analyser.maxDecibels=-15;
+     this.frequencyBins=new Uint8Array(this.analyser.frequencyBinCount);
+     // Single audio route: source → analyser → gain → destination. No extra playback.
+     this.analyser.connect(this.gain);
+   }catch {this.analyser?.disconnect();this.analyser=null;this.frequencyBins=null;}
+  }
+  return this.context.resume();
+ }
+ setAnalysisEnabled(enabled:boolean){
+  this.analysisEnabled=enabled;
+  this.transients.reset();
+  if(!enabled)this.frequencyBins?.fill(0);
+ }
+ /** Read only in-memory FFT values from the currently playing song. No audio capture. */
+ sampleVisualFrame():WorldAudioFrame {
+  if(!this.analysisEnabled||!this.source||!this.context||this.context.state!=='running'||
+     !this.analyser||!this.frequencyBins)return {...ZERO_WORLD_AUDIO};
+  try{
+   this.analyser.getByteFrequencyData(this.frequencyBins);
+   const values=spectrumBands(this.frequencyBins,this.context.sampleRate,this.analyser.fftSize);
+   return {...values,beat:this.transients.next(values.bass,this.context.currentTime)};
+  }catch{return {...ZERO_WORLD_AUDIO};}
+ }
  async decode(file:File){await this.unlock();const buffer=await this.context!.decodeAudioData(await file.arrayBuffer());return {buffer,bpm:estimateBpm(buffer),duration:buffer.duration};}
  keep(id:string,b:AudioBuffer){this.cache.set(id,b);this.trim(id);}
  private trim(id:string){if(this.cache.size>3){for(const key of this.cache.keys()){if(key!==id){this.cache.delete(key);break;}}}}
@@ -26,10 +56,10 @@ export class PulseAudio {
   })();this.loads.set(track.id,load);
   try{return await load;}finally{this.loads.delete(track.id);}
  }
- play(track:Track,elapsed:number){this.stop();const buffer=this.cache.get(track.id);if(!buffer||!this.context||!this.gain)throw new Error('Your music is still loading. Try starting again.');const source=this.context.createBufferSource();source.buffer=buffer;source.loop=true;source.connect(this.gain);source.start(0,Math.max(0,elapsed)%buffer.duration);this.source=source;}
- stop(){if(this.source){try{this.source.stop();}catch{}this.source.disconnect();this.source=null;}}
+ play(track:Track,elapsed:number){this.stop();const buffer=this.cache.get(track.id);if(!buffer||!this.context||!this.gain)throw new Error('Your music is still loading. Try starting again.');const source=this.context.createBufferSource();source.buffer=buffer;source.loop=true;source.connect(this.analyser??this.gain);source.start(0,Math.max(0,elapsed)%buffer.duration);this.source=source;this.transients.reset();}
+ stop(){if(this.source){try{this.source.stop();}catch{}this.source.disconnect();this.source=null;}this.transients.reset();this.frequencyBins?.fill(0);}
  setVolume(v:number){this.volume=v;if(this.gain&&this.context)this.gain.gain.setTargetAtTime(v,this.context.currentTime,.05);}
- dispose(){this.stop();void this.context?.close();}
+ dispose(){this.stop();this.analysisEnabled=false;this.analyser?.disconnect();this.analyser=null;this.frequencyBins=null;void this.context?.close();}
  private async demo(track:Track){
   const rate=22050,beat=60/track.bpm,duration=track.id==='demo-still'?20:beat*64;
   const ctx=new OfflineAudioContext(2,Math.ceil(rate*duration),rate),master=ctx.createGain();master.gain.value=.55;master.connect(ctx.destination);
