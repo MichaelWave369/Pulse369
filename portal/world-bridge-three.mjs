@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import {visualCueForSession} from './world-visual-clock.mjs';
+import {normalizedWorldAudio} from './world-audio-frame.mjs';
 
 const PALETTE = {
   outrun:{full:'#ff4ead',bass:'#ff5980',mid:'#a66eff',high:'#35faff',beat:'#ffbd75'},
@@ -68,19 +69,24 @@ export function createWorldVisual(pack) {
   stage.add(ambient);
   const key=new THREE.DirectionalLight(0xc7e6ff,2);
   key.position.set(5,12,4);stage.add(key);
-  let disposed=false;
-  function update(seconds,bpm=120,reducedMotion=false,eightCount=false,beatOffset=0) {
+  let disposed=false,lastFrameSeconds=null;
+  function update(seconds,bpm=120,reducedMotion=false,eightCount=false,beatOffset=0,audioFrame=undefined,visualGain=1) {
+    if(!Number.isFinite(visualGain)||visualGain<0||visualGain>1.5)throw Error('Invalid visual gain');
     if(disposed)return;
     const cue=visualCueForSession(pack.show,seconds,bpm,beatOffset,eightCount);
     const beatPhase=Math.max(0,seconds-beatOffset)*bpm/60*2*Math.PI;
     const signal=reducedMotion?0:Math.pow(.5+.5*Math.cos(beatPhase),3);
-    const values={full:.18+signal*.6,bass:.12+signal*.7,mid:.22+signal*.38,
-      high:.12+signal*.34,beat:signal};
+    const values=audioFrame===undefined
+      ? {full:.18+signal*.6,bass:.12+signal*.7,mid:.22+signal*.38,high:.12+signal*.34,beat:signal}
+      : (()=>{const frame=normalizedWorldAudio(audioFrame);return {full:frame.energy,bass:frame.bass,mid:frame.mid,high:frame.high,beat:frame.beat};})();
+    const dt=lastFrameSeconds===null?.016:Math.min(.1,Math.max(0,seconds-lastFrameSeconds));
+    lastFrameSeconds=seconds;
+    const smooth=1-Math.exp(-dt/.14);
     for(const item of items) {
       const {data:o,mesh}=item;
       const motion=o.motion;
       const band=motion?.band??'full';
-      const energy=reducedMotion?0:values[band]*cue.energy;
+      const energy=reducedMotion?0:Math.min(1.5,values[band]*cue.energy*visualGain);
       mesh.position.fromArray(o.position);
       mesh.rotation.fromArray(o.rotation);
       mesh.scale.fromArray(o.scale);
@@ -98,7 +104,7 @@ export function createWorldVisual(pack) {
       }
       const targetGlow=reducedMotion?0:Math.min(.85,energy*cue.gain*.6);
       // Smooth bright transitions; no sharp beat-triggered strobe.
-      item.envelope+=(targetGlow-item.envelope)*.13;
+      item.envelope+=(targetGlow-item.envelope)*smooth;
       mesh.material.emissive.set(PALETTE[cue.palette][band]);
       mesh.material.emissiveIntensity=item.envelope;
     }
