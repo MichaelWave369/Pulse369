@@ -14,7 +14,7 @@ export class PulseGame {
  renderer:THREE.WebGLRenderer;scene=new THREE.Scene();camera=new THREE.PerspectiveCamera(64,1,.05,100);
  audio=new PulseAudio();config:Config=DEFAULT_CONFIG;status:GameStatus={phase:'idle',elapsed:0,score:0,hits:0,total:0,combo:0,maxCombo:0,cue:'',detail:'',vr:false};
  private recentResults:boolean[]=[];private notes:Note[]=[];private noteCursor=0;private clockStart=0;private pauseElapsed=0;private countedSeconds=0;private segmentStart=0;private lastFrame=0;private lastPublish=0;private lastHud='';private sessionId='';private usedVR=false;private startGeneration=0;
- private world?:WorkoutWorld;private customWorld?:CustomWorkoutWorld;private agents?:WorkoutCompanions;private heart=new HeartAccumulator();private heartRate:number|null=null;private lastSpeech=0;
+ private world?:WorkoutWorld;private customWorld?:CustomWorkoutWorld;private worldAudioMode:'live'|'tempo'|'still'='live';private worldVisualGain=1;private agents?:WorkoutCompanions;private heart=new HeartAccumulator();private heartRate:number|null=null;private lastSpeech=0;
  private orb:THREE.Mesh;private guides:THREE.Group[]=[];private guideTrails:THREE.Line[]=[];private guideSamples:THREE.Vector3[][]=[];private guideSampleAt=0;private targetGeo=new THREE.TorusGeometry(.17,.027,8,24);private coreGeo=new THREE.SphereGeometry(.082,12,8);private barGeo=new THREE.BoxGeometry(.19,.04,.025);private shieldGeo=new THREE.CircleGeometry(.16,6);
  private guardMark=new THREE.MeshBasicMaterial({color:0x0c1622});private handGeo=new THREE.SphereGeometry(.09,12,8);private materials=[new THREE.MeshBasicMaterial({color:0xc0a0ff}),new THREE.MeshBasicMaterial({color:0xd1fc74})];
  private controllers:THREE.XRTargetRaySpace[]=[];private grips:THREE.XRGripSpace[]=[];private lastHands=[new THREE.Vector3(),new THREE.Vector3()];private sources:(XRInputSource|undefined)[]=[];
@@ -50,6 +50,13 @@ export class PulseGame {
   this.customWorld=next;
   if(this.world)this.world.root.visible=!next;
   previous?.dispose();
+  this.audio.setAnalysisEnabled(!!next&&this.worldAudioMode==='live');
+ }
+ /** Visual-only settings. Live mode only analyzes an already-playing PulseAudio track. */
+ setWorldVisuals(mode:'live'|'tempo'|'still',gain:number){
+  if(!['live','tempo','still'].includes(mode)||!Number.isFinite(gain)||gain<0||gain>1.5)throw Error('Invalid world visual settings');
+  this.worldAudioMode=mode;this.worldVisualGain=gain;
+  this.audio.setAnalysisEnabled(!!this.customWorld&&mode==='live');
  }
  preview(c:Config){if(['playing','paused','loading'].includes(this.status.phase))return;this.config=c;this.applyScene(c);this.orb.visible=!isActive(c.mode);this.notes.forEach(n=>n.mesh&&this.scene.remove(n.mesh));this.notes=[];}
  setVoice(enabled:boolean){this.voice=enabled;if(!enabled)window.speechSynthesis?.cancel();}
@@ -92,8 +99,17 @@ export class PulseGame {
   const active=this.status.phase==='playing',elapsed=active?this.elapsed():this.status.elapsed;
   const visualTime=time/1000;
   // Imported scenery reads the session clock and chosen track BPM, never gameplay/pose data.
-  // R2's beats are visual approximations, not decoded live audio envelope samples.
-  if(this.customWorld)this.customWorld.update(active?Math.max(0,elapsed):visualTime,this.config.track.bpm,this.config.calm,this.config.mode==='rave',this.config.track.offset);
+  // R3 live mode observes only the actual currently playing PulseAudio source.
+  // The data is visual-only; the scoring clock/targets and audio graph stay authoritative.
+  if(this.customWorld){
+    const seconds=active?Math.max(0,elapsed):Math.max(0,this.status.elapsed);
+    const input=this.worldAudioMode==='tempo'?undefined:
+      this.worldAudioMode==='live'&&active&&elapsed>=0?this.audio.sampleVisualFrame():
+      {energy:0,bass:0,mid:0,high:0,beat:0};
+    this.customWorld.update(seconds,this.config.track.bpm,
+      this.config.calm||this.worldAudioMode==='still',this.config.mode==='rave',
+      this.config.track.offset,input,this.worldVisualGain);
+  }
   else this.world?.update(visualTime,this.config);
   if(active){this.status.elapsed=Math.max(0,elapsed);if(elapsed>=this.config.minutes*60){this.finish(true);}
    else if(elapsed<0){this.status.cue=`Starting in ${Math.ceil(-elapsed)}`;this.status.detail='Everyone starts on the same beat.';}
@@ -125,5 +141,5 @@ export class PulseGame {
  updatePeers(members:Member[],selfId:string){const others=members.filter(m=>m.user_id!==selfId);const keep=new Set(others.map(m=>m.user_id));for(const [id,p]of this.peers){if(!keep.has(id)){this.scene.remove(p.group);p.group.traverse(o=>{if(o instanceof THREE.Mesh){o.geometry.dispose();(o.material as THREE.Material).dispose();}});this.peers.delete(id);}}
   others.forEach((m,i)=>{let p=this.peers.get(m.user_id);if(!p){const group=new THREE.Group(),material=new THREE.MeshBasicMaterial({color:m.color,transparent:true,opacity:.55});const head=new THREE.Mesh(new THREE.SphereGeometry(.12,12,8),material),left=new THREE.Mesh(new THREE.SphereGeometry(.075,8,6),material),right=new THREE.Mesh(new THREE.SphereGeometry(.075,8,6),material);const body=new THREE.Mesh(new THREE.CapsuleGeometry(.13,.45,4,8),material);body.position.y=1.1;group.add(head,left,right,body);this.scene.add(group);p={group,head,left,right,target:[]};this.peers.set(m.user_id,p);}p.group.position.set(i%2===0?-2-i*.3:2+i*.3,0,-2.3-Math.floor(i/2)*.4);p.target=m.pose.length===9?m.pose:[0,1.6,0,-.4,1.1,-.4,.4,1.1,-.4];});
  }
- dispose(){this.destroyed=true;this.startGeneration++;this.renderer.setAnimationLoop(null);this.resizeObserver.disconnect();window.removeEventListener('keydown',this.key);document.removeEventListener('visibilitychange',this.visibility);void this.renderer.xr.getSession()?.end();this.audio.dispose();this.customWorld?.dispose();this.world?.dispose();this.agents?.dispose();window.speechSynthesis?.cancel();const geometries=new Set<THREE.BufferGeometry>(),materials=new Set<THREE.Material>(),textures=new Set<THREE.Texture>();this.scene.traverse(o=>{if(o instanceof THREE.Mesh||o instanceof THREE.Line||o instanceof THREE.Points){geometries.add(o.geometry);for(const m of Array.isArray(o.material)?o.material:[o.material]){materials.add(m);const map=(m as THREE.MeshBasicMaterial).map;if(map)textures.add(map);}}});geometries.add(this.targetGeo);geometries.add(this.coreGeo);geometries.add(this.handGeo);geometries.add(this.barGeo);geometries.add(this.shieldGeo);geometries.forEach(g=>g.dispose());materials.add(this.guardMark);this.materials.forEach(m=>materials.add(m));materials.forEach(m=>m.dispose());textures.forEach(t=>t.dispose());this.renderer.dispose();this.renderer.domElement.remove();}
+ dispose(){this.destroyed=true;this.startGeneration++;this.renderer.setAnimationLoop(null);this.resizeObserver.disconnect();window.removeEventListener('keydown',this.key);document.removeEventListener('visibilitychange',this.visibility);void this.renderer.xr.getSession()?.end();this.audio.setAnalysisEnabled(false);this.audio.dispose();this.customWorld?.dispose();this.world?.dispose();this.agents?.dispose();window.speechSynthesis?.cancel();const geometries=new Set<THREE.BufferGeometry>(),materials=new Set<THREE.Material>(),textures=new Set<THREE.Texture>();this.scene.traverse(o=>{if(o instanceof THREE.Mesh||o instanceof THREE.Line||o instanceof THREE.Points){geometries.add(o.geometry);for(const m of Array.isArray(o.material)?o.material:[o.material]){materials.add(m);const map=(m as THREE.MeshBasicMaterial).map;if(map)textures.add(map);}}});geometries.add(this.targetGeo);geometries.add(this.coreGeo);geometries.add(this.handGeo);geometries.add(this.barGeo);geometries.add(this.shieldGeo);geometries.forEach(g=>g.dispose());materials.add(this.guardMark);this.materials.forEach(m=>materials.add(m));materials.forEach(m=>m.dispose());textures.forEach(t=>t.dispose());this.renderer.dispose();this.renderer.domElement.remove();}
 }
