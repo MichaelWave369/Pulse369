@@ -12,13 +12,13 @@ The design remains local-first and scenery-only. Score calculation, canonical rh
 2. Export **Showpack v1 JSON** or workshop JSON; do not use the static GLB export for animation.
 3. In the running, authenticated Pulse369 studio, under **Your session → Environment**, import the JSON into the new **World Forge · local world shelf**.
 4. Choose the imported scene from the Environment selector. The stage visibly replaces the standard procedural world, while the real targets and coach keep their existing logic.
-5. Choose the session mode and music, then start desktop training or use Quest's **Enter VR**. The custom scene runs as a decorative visual background with session-time-driven Showrunner cues and an approximate pulsing signal calculated from the selected song's BPM.
+5. Choose the session mode and music, then start desktop training or use Quest's **Enter VR**. The custom scene runs as a decorative visual background with eight-count-aligned visual cue changes in **Rave flow**, Showrunner's timed cues in other modes, and an approximate pulsing signal calculated from the selected song's BPM and offset.
 6. Use **Lower visual motion** to remove imported motion and glow effects while retaining static scenery.
 7. Use **Export WorldPack** to retain a copy. Up to three validated scenes can be loaded **in this browser tab**. Reimport files next time. Removing a scene does not delete original downloads.
 
 Do not interpret the synthetic visual pulses as analyzed live audio envelopes or beat-detected BPM. Imported scene content remains local to the tab; no user-generated scenery gets uploaded to Pulse369's server, added to session records or serialized in room configs.
 
-## Runtime separation
+Eight-count alignment is a visual-only adaptation of the same BPM grid used for Pulse369's rave choreography. It does not import or execute authored DanceFlow R10 timeline documents. Full R10 scene cue mapping remains follow-on work.\n\n## Runtime separation
 
 - `portal/world-bridge.mjs`: single canonical validation/normalization for Domistika Showpacks, workshops and portable WorldPacks.
 - `portal/world-bridge-three.mjs`: shared, deterministic Three.js material/geometry/motion visualization.
