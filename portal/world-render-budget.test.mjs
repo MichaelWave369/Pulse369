@@ -5,7 +5,7 @@ import {createPerformance} from './world-performance.mjs';
 import {estimateWorldCost,sceneTransitionPolicy,performanceBudgetReport,RENDER_BUDGETS} from './world-render-budget.mjs';
 const object=SAMPLE_WORLD.workshop.objects[0];
 const dense={...SAMPLE_WORLD,title:'Dense torus knots',workshop:{...SAMPLE_WORLD.workshop,
-  objects:Array.from({length:48},(_,i)=>({...object,id:'r5-'+String(i).padStart(5,'0'),name:'Knot '+i,kind:'tube',dimensions:[1,1,1]}))}};
+  objects:Array.from({length:48},(_,i)=>({...object,id:'work-r5-'+String(i).padStart(5,'0'),name:'Knot '+i,kind:'tube',dimensions:[1,1,1]}))}};
 test('estimate counts rendered primitive triangles, not just imported mesh triangles',()=>{
  const desktop=estimateWorldCost(dense,'desktop'),quest=estimateWorldCost(dense,'quest');
  assert.equal(desktop.triangles,48*1024);assert.equal(quest.triangles,48*480);
