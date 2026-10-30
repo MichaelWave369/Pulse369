@@ -8,7 +8,7 @@ import ts from 'typescript';
 const require=createRequire(import.meta.url),temp=await fs.mkdtemp(path.join(os.tmpdir(),'pulse-game-'));
 let checks=0;const check=(condition,message)=>{assert.ok(condition,message);checks++;};
 try{
- for(const name of ['pulse','audio','training','journeys','coaching','worlds','custom-workout-world','companions','heart-rate','clans','custom-missions','game-engine']){const source=await fs.readFile('lib/'+name+'.ts','utf8');let code=ts.transpileModule(source,{compilerOptions:{target:ts.ScriptTarget.ES2022,module:ts.ModuleKind.ESNext}}).outputText;code=code.replace(/from '(\.\/[\w-]+)'/g,"from '$1.mjs'").replaceAll("from 'three'","from '"+pathToFileURL(path.join(path.dirname(require.resolve('three')),'three.module.js')).href+"'");code=code.replace(/from '\.\.\/portal\/([^']+)'/g,(_,asset)=>"from '"+pathToFileURL(path.resolve('portal',asset)).href+"'");
+ for(const name of ['pulse','audio','training','journeys','coaching','worlds','custom-workout-world','performance-workout-world','companions','heart-rate','clans','custom-missions','game-engine']){const source=await fs.readFile('lib/'+name+'.ts','utf8');let code=ts.transpileModule(source,{compilerOptions:{target:ts.ScriptTarget.ES2022,module:ts.ModuleKind.ESNext}}).outputText;code=code.replace(/from '(\.\/[\w-]+)'/g,"from '$1.mjs'").replaceAll("from 'three'","from '"+pathToFileURL(path.join(path.dirname(require.resolve('three')),'three.module.js')).href+"'");code=code.replace(/from '\.\.\/portal\/([^']+)'/g,(_,asset)=>"from '"+pathToFileURL(path.resolve('portal',asset)).href+"'");
  await fs.writeFile(path.join(temp,name+'.mjs'),code);}
  const {DEFAULT_CONFIG,makeChart,recoveryCue,clock,weekStats,sessionPhase,DURATIONS,mindfulHands,movementProgress,MODES,isActive,danceCue}=await import(pathToFileURL(path.join(temp,'pulse.mjs')).href);
  const {JOURNEYS,journeyPresets,qualifiesJourneyStep,nextJourneyPreset}=await import(pathToFileURL(path.join(temp,'journeys.mjs')).href);
@@ -18,10 +18,33 @@ try{
  const {parseHeartRate,HeartAccumulator,HeartMonitor}=await import(pathToFileURL(path.join(temp,'heart-rate.mjs')).href);
  const {matchesActivity,customMissionProgress,customMissionPreset}=await import(pathToFileURL(path.join(temp,'custom-missions.mjs')).href);
  const {PulseGame}=await import(pathToFileURL(path.join(temp,'game-engine.mjs')).href);
+ const {PerformanceWorkoutWorld}=await import(pathToFileURL(path.join(temp,'performance-workout-world.mjs')).href);
  const {PulseAudio}=await import(pathToFileURL(path.join(temp,'audio.mjs')).href);
  const {fitWorldBackdrop}=await import(pathToFileURL(path.resolve('portal/world-stage-layout.mjs')).href);
  const {SAMPLE_WORLD,readWorldFile,writeWorldPack}=await import(pathToFileURL(path.resolve('portal/world-bridge.mjs')).href);
  const {visualCueForSession}=await import(pathToFileURL(path.resolve('portal/world-visual-clock.mjs')).href);
+ const {starterChart}=await import(pathToFileURL(path.resolve('portal/choreo-model.mjs')).href);
+ const {createPerformance,editPerformanceCue,samplePerformance,writePerformance,readPerformance}=await import(pathToFileURL(path.resolve('portal/world-performance.mjs')).href);
+ const authored=starterChart();
+ const composed=createPerformance(authored,[SAMPLE_WORLD,{...SAMPLE_WORLD,title:'Second Domistika realm'}]);
+ check(composed.cues.length===authored.phrases.length&&readPerformance(writePerformance(composed)).worlds.length===2,
+   'World Forge R4 composes validated offline choreography and scenery into a music-free show');
+ const transitionStart=8*60/authored.bpm;
+ const atBoundary=samplePerformance(composed,transitionStart),atHalf=samplePerformance(composed,transitionStart+2*60/authored.bpm);
+ check(atBoundary.phraseIndex===1&&atBoundary.blend===0&&Math.abs(atHalf.blend-.5)<1e-7,
+   'World Forge R4 scene crossfade aligns to authored eight-count phrase boundaries');
+ const recolored=editPerformanceCue(composed,1,{palette:'ember',glow:.4,motion:.3});
+ check(recolored.cues[1].palette==='ember'&&composed.cues[1].palette==='aurora',
+   'Visual phrase edits do not mutate the source performance or gameplay chart');
+ const mixed=new PerformanceWorkoutWorld(composed);
+ mixed.update(0,authored.bpm,false,undefined,1,0);
+ check(mixed.visibleStages.size===1,'Only one world is resident outside a crossfade');
+ mixed.update(transitionStart,authored.bpm,false,undefined,1,transitionStart);
+ check(mixed.visibleStages.size===2,'World transition uses at most two live display scenes');
+ mixed.update(transitionStart+5*60/authored.bpm,authored.bpm,false,undefined,1,transitionStart+2);
+ check(mixed.visibleStages.size===1,'Old scenes dispose when the authored transition completes');
+ mixed.dispose();
+ check(mixed.visibleStages.size===0,'All authored world geometry is disposed at teardown');
  check(visualCueForSession(SAMPLE_WORLD.show,4,120,0,true).title==='Flow','Rave visual scenes change at eight-count boundaries.');
  const {spectrumBands,ZERO_WORLD_AUDIO}=await import(pathToFileURL(path.resolve('portal/world-audio-frame.mjs')).href);
  const {assignObjectBand}=await import(pathToFileURL(path.resolve('portal/world-director.mjs')).href);
