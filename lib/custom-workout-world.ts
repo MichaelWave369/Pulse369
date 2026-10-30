@@ -6,6 +6,7 @@ import * as THREE from 'three';
 import {createWorldVisual} from '../portal/world-bridge-three.mjs';
 import {fitWorldBackdrop} from '../portal/world-stage-layout.mjs';
 import type {WorldPack} from '../portal/world-bridge.mjs';
+import type {WorldAudioFrame} from '../portal/world-audio-frame.mjs';
 
 export class CustomWorkoutWorld {
   readonly root:THREE.Group;
@@ -39,8 +40,8 @@ export class CustomWorkoutWorld {
       this.root.updateMatrixWorld(true);
     }catch(error){this.visual.dispose();throw error;}
   }
-  update(elapsedSeconds:number,bpm:number,reducedMotion:boolean,eightCount=false,beatOffset=0){
-    this.visual.update(Math.max(0,elapsedSeconds),bpm,reducedMotion,eightCount,beatOffset);
+  update(elapsedSeconds:number,bpm:number,reducedMotion:boolean,eightCount=false,beatOffset=0,audioFrame?:WorldAudioFrame|null,visualGain=1,renderTime?:number){
+    this.visual.update(Math.max(0,elapsedSeconds),bpm,reducedMotion,eightCount,beatOffset,audioFrame,visualGain,renderTime);
   }
   dispose(){this.visual.dispose();}
 }
