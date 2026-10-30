@@ -6,6 +6,7 @@ import { CustomWorkoutWorld } from './custom-workout-world';
 import { PerformanceWorkoutWorld } from './performance-workout-world';
 import type { WorldPerformance } from '../portal/world-performance.mjs';
 import type { WorldPack } from '../portal/world-bridge.mjs';
+import {createDirectorClock,createDirectorSheet} from '../portal/world-experience-director.mjs';
 import {createAcceptanceRecorder,type AcceptanceChecklist} from '../portal/world-acceptance.mjs';
 import {createVisualGovernor} from '../portal/world-adaptive-governor.mjs';
 import { WorkoutCompanions } from './companions';
@@ -19,6 +20,7 @@ export class PulseGame {
  audio=new PulseAudio();config:Config=DEFAULT_CONFIG;status:GameStatus={phase:'idle',elapsed:0,score:0,hits:0,total:0,combo:0,maxCombo:0,cue:'',detail:'',vr:false};
  private recentResults:boolean[]=[];private notes:Note[]=[];private noteCursor=0;private clockStart=0;private pauseElapsed=0;private countedSeconds=0;private segmentStart=0;private lastFrame=0;private lastPublish=0;private lastHud='';private sessionId='';private usedVR=false;private startGeneration=0;
  private readonly acceptanceRecorder=createAcceptanceRecorder();
+ private readonly directorClock=createDirectorClock();
  private readonly visualGovernor=createVisualGovernor();private adaptiveVisualsEnabled=false;
  private world?:WorkoutWorld;private customWorld?:CustomWorkoutWorld;private performanceWorld?:PerformanceWorkoutWorld;private worldAudioMode:'live'|'tempo'|'still'='live';private worldVisualGain=1;private agents?:WorkoutCompanions;private heart=new HeartAccumulator();private heartRate:number|null=null;private lastSpeech=0;
  private orb:THREE.Mesh;private guides:THREE.Group[]=[];private guideTrails:THREE.Line[]=[];private guideSamples:THREE.Vector3[][]=[];private guideSampleAt=0;private targetGeo=new THREE.TorusGeometry(.17,.027,8,24);private coreGeo=new THREE.SphereGeometry(.082,12,8);private barGeo=new THREE.BoxGeometry(.19,.04,.025);private shieldGeo=new THREE.CircleGeometry(.16,6);
@@ -62,6 +64,7 @@ export class PulseGame {
  /** Solo, client-owned DanceFlow visual show. Never serializes to a room or workout. */
  setWorldPerformance(show:WorldPerformance|null){
   if(['playing','paused','loading'].includes(this.status.phase))return;
+  this.directorClock.setEnabled(false);
   const next=show?new PerformanceWorkoutWorld(show):undefined;
   if(next)this.scene.add(next.root);
   const previous=this.performanceWorld;this.performanceWorld=next;
@@ -70,6 +73,28 @@ export class PulseGame {
   previous?.dispose();
   this.audio.setAnalysisEnabled(!!(next||this.customWorld)&&this.worldAudioMode==='live');
  }
+ /** R10 author-controlled silent rehearsal. The renderer sees this visual-only clock;
+  * note chart, workout timer, Web Audio and saved sessions never read it.
+  */
+ setDirectorRehearsalEnabled(enabled:boolean){
+  if(typeof enabled!=='boolean')throw Error('Invalid rehearsal setting');
+  if(!enabled){this.directorClock.setEnabled(false);return;}
+  if(!this.performanceWorld||!['idle','finished'].includes(this.status.phase)||this.renderer.xr.isPresenting)
+   throw Error('Choose an authored show and finish your workout before rehearsing');
+  const length=createDirectorSheet(this.performanceWorld.getAuthoredShow()).durationSeconds;
+  this.directorClock.setEnabled(true,length);
+ }
+ seekDirectorRehearsal(seconds:number){
+  if(!['idle','finished'].includes(this.status.phase)||this.renderer.xr.isPresenting)
+   throw Error('Rehearsal seeking is unavailable during a session');
+  return this.directorClock.seek(seconds);
+ }
+ setDirectorRehearsalPlaying(playing:boolean){
+  if(!['idle','finished'].includes(this.status.phase)||this.renderer.xr.isPresenting)
+   throw Error('Rehearsal playback is unavailable during a session');
+  return this.directorClock.play(playing);
+ }
+ getDirectorRehearsalStatus(){return this.directorClock.status();}
  /** R7 optional local WebXR callback capture. Never accesses audio, poses or score.
   * The user must press Start in Studio before entering immersive VR.
   */
@@ -107,6 +132,7 @@ export class PulseGame {
  }
  async start(c:Config,groupAnchor:number|null=null){
   if(this.status.phase==='playing'||this.status.phase==='loading')return;
+  this.directorClock.setEnabled(false);
   const generation=++this.startGeneration;this.audio.stop();this.config=c;this.groupAnchor=groupAnchor;this.status={phase:'loading',elapsed:0,score:0,hits:0,total:0,combo:0,maxCombo:0,cue:'Loading your music',detail:'',vr:this.renderer.xr.isPresenting};this.publish();
   try{await this.audio.unlock();await this.audio.prepare(c.track);if(this.destroyed||generation!==this.startGeneration)return;
    this.applyScene(c);this.heart.reset();this.recentResults=[];this.notes.forEach(n=>n.mesh&&this.scene.remove(n.mesh));this.clockStart=groupAnchor??performance.now();this.status.elapsed=this.elapsed();this.notes=makeChart(c).map(n=>({...n,done:n.time<Math.max(0,this.status.elapsed)}));this.noteCursor=0;this.sessionId=crypto.randomUUID();this.usedVR=this.renderer.xr.isPresenting;this.pauseElapsed=0;this.countedSeconds=0;this.segmentStart=performance.now();this.status.phase='playing';this.spoken='';this.lastSpeech=-Infinity;this.orb.visible=!isActive(c.mode);
@@ -134,11 +160,15 @@ export class PulseGame {
   if(this.destroyed)return;const dt=Math.min(.05,Math.max(0,(time-this.lastFrame)/1000));this.lastFrame=time;
   const active=this.status.phase==='playing',elapsed=active?this.elapsed():this.status.elapsed;
   const visualTime=time/1000;
+  const rehearsalEligible=!active&&['idle','finished'].includes(this.status.phase)&&
+    !!this.performanceWorld&&!this.renderer.xr.isPresenting&&!(typeof document!=='undefined'&&document.hidden);
+  const rehearsal=this.directorClock?.tick(time,rehearsalEligible);
   // Imported scenery reads the session clock and chosen track BPM, never gameplay/pose data.
   // R3 live mode observes only the actual currently playing PulseAudio source.
   // The data is visual-only; the scoring clock/targets and audio graph stay authoritative.
   if(this.customWorld||this.performanceWorld){
-    const seconds=active?Math.max(0,elapsed):Math.max(0,this.status.elapsed);
+    const seconds=active?Math.max(0,elapsed):rehearsalEligible&&rehearsal?.enabled?
+      rehearsal.seconds:Math.max(0,this.status.elapsed);
     const input=this.worldAudioMode==='tempo'&&active&&elapsed>=0?undefined:
       this.worldAudioMode==='live'&&active&&elapsed>=0?this.audio.sampleVisualFrame():
       {energy:0,bass:0,mid:0,high:0,beat:0};
@@ -197,5 +227,5 @@ export class PulseGame {
  updatePeers(members:Member[],selfId:string){const others=members.filter(m=>m.user_id!==selfId);const keep=new Set(others.map(m=>m.user_id));for(const [id,p]of this.peers){if(!keep.has(id)){this.scene.remove(p.group);p.group.traverse(o=>{if(o instanceof THREE.Mesh){o.geometry.dispose();(o.material as THREE.Material).dispose();}});this.peers.delete(id);}}
   others.forEach((m,i)=>{let p=this.peers.get(m.user_id);if(!p){const group=new THREE.Group(),material=new THREE.MeshBasicMaterial({color:m.color,transparent:true,opacity:.55});const head=new THREE.Mesh(new THREE.SphereGeometry(.12,12,8),material),left=new THREE.Mesh(new THREE.SphereGeometry(.075,8,6),material),right=new THREE.Mesh(new THREE.SphereGeometry(.075,8,6),material);const body=new THREE.Mesh(new THREE.CapsuleGeometry(.13,.45,4,8),material);body.position.y=1.1;group.add(head,left,right,body);this.scene.add(group);p={group,head,left,right,target:[]};this.peers.set(m.user_id,p);}p.group.position.set(i%2===0?-2-i*.3:2+i*.3,0,-2.3-Math.floor(i/2)*.4);p.target=m.pose.length===9?m.pose:[0,1.6,0,-.4,1.1,-.4,.4,1.1,-.4];});
  }
- dispose(){this.acceptanceRecorder.stop();this.visualGovernor.setImmersive(false);this.destroyed=true;this.startGeneration++;this.renderer.setAnimationLoop(null);this.resizeObserver.disconnect();window.removeEventListener('keydown',this.key);document.removeEventListener('visibilitychange',this.visibility);void this.renderer.xr.getSession()?.end();this.audio.setAnalysisEnabled(false);this.audio.dispose();this.performanceWorld?.dispose();this.customWorld?.dispose();this.world?.dispose();this.agents?.dispose();window.speechSynthesis?.cancel();const geometries=new Set<THREE.BufferGeometry>(),materials=new Set<THREE.Material>(),textures=new Set<THREE.Texture>();this.scene.traverse(o=>{if(o instanceof THREE.Mesh||o instanceof THREE.Line||o instanceof THREE.Points){geometries.add(o.geometry);for(const m of Array.isArray(o.material)?o.material:[o.material]){materials.add(m);const map=(m as THREE.MeshBasicMaterial).map;if(map)textures.add(map);}}});geometries.add(this.targetGeo);geometries.add(this.coreGeo);geometries.add(this.handGeo);geometries.add(this.barGeo);geometries.add(this.shieldGeo);geometries.forEach(g=>g.dispose());materials.add(this.guardMark);this.materials.forEach(m=>materials.add(m));materials.forEach(m=>m.dispose());textures.forEach(t=>t.dispose());this.renderer.dispose();this.renderer.domElement.remove();}
+ dispose(){this.directorClock.setEnabled(false);this.acceptanceRecorder.stop();this.visualGovernor.setImmersive(false);this.destroyed=true;this.startGeneration++;this.renderer.setAnimationLoop(null);this.resizeObserver.disconnect();window.removeEventListener('keydown',this.key);document.removeEventListener('visibilitychange',this.visibility);void this.renderer.xr.getSession()?.end();this.audio.setAnalysisEnabled(false);this.audio.dispose();this.performanceWorld?.dispose();this.customWorld?.dispose();this.world?.dispose();this.agents?.dispose();window.speechSynthesis?.cancel();const geometries=new Set<THREE.BufferGeometry>(),materials=new Set<THREE.Material>(),textures=new Set<THREE.Texture>();this.scene.traverse(o=>{if(o instanceof THREE.Mesh||o instanceof THREE.Line||o instanceof THREE.Points){geometries.add(o.geometry);for(const m of Array.isArray(o.material)?o.material:[o.material]){materials.add(m);const map=(m as THREE.MeshBasicMaterial).map;if(map)textures.add(map);}}});geometries.add(this.targetGeo);geometries.add(this.coreGeo);geometries.add(this.handGeo);geometries.add(this.barGeo);geometries.add(this.shieldGeo);geometries.forEach(g=>g.dispose());materials.add(this.guardMark);this.materials.forEach(m=>materials.add(m));materials.forEach(m=>m.dispose());textures.forEach(t=>t.dispose());this.renderer.dispose();this.renderer.domElement.remove();}
 }
