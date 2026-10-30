@@ -6,7 +6,7 @@ import { CustomWorkoutWorld } from './custom-workout-world';
 import { PerformanceWorkoutWorld } from './performance-workout-world';
 import type { WorldPerformance } from '../portal/world-performance.mjs';
 import type { WorldPack } from '../portal/world-bridge.mjs';
-import {createDirectorClock,createDirectorSheet} from '../portal/world-experience-director.mjs';
+import {createDirectorClock} from '../portal/world-experience-director.mjs';
 import {createAcceptanceRecorder,type AcceptanceChecklist} from '../portal/world-acceptance.mjs';
 import {createVisualGovernor} from '../portal/world-adaptive-governor.mjs';
 import { WorkoutCompanions } from './companions';
@@ -81,7 +81,7 @@ export class PulseGame {
   if(!enabled){this.directorClock.setEnabled(false);return;}
   if(!this.performanceWorld||!['idle','finished'].includes(this.status.phase)||this.renderer.xr.isPresenting)
    throw Error('Choose an authored show and finish your workout before rehearsing');
-  const length=createDirectorSheet(this.performanceWorld.getAuthoredShow()).durationSeconds;
+  const length=this.performanceWorld.getDirectorDuration();
   this.directorClock.setEnabled(true,length);
  }
  seekDirectorRehearsal(seconds:number){
