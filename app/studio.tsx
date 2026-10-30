@@ -41,11 +41,11 @@ export default function Studio(){
  const [worldAudioMode,setWorldAudioMode]=useState<'live'|'tempo'|'still'>('live');
  const [worldVisualGain,setWorldVisualGain]=useState(1);
  const [directorObjectId,setDirectorObjectId]=useState('');
- const [performance,setPerformance]=useState<WorldPerformance|null>(null);
+ const [performanceShow,setPerformance]=useState<WorldPerformance|null>(null);
  const [performanceEnabled,setPerformanceEnabled]=useState(false);
  const [selectedPhrase,setSelectedPhrase]=useState(0);
  const [composerMessage,setComposerMessage]=useState('Import an authored DanceFlow chart, or open a saved World Performance.');
- const activeCue=performance?.cues[Math.min(selectedPhrase,performance.cues.length-1)];
+ const activeCue=performanceShow?.cues[Math.min(selectedPhrase,performance.cues.length-1)];
  const [worldMessage,setWorldMessage]=useState('Import up to three locally authored worlds. They stay in this tab unless you export a WorldPack file.');
  const selectedWorld=customWorlds.find(w=>w.id===selectedWorldId)?.pack??null;
  const directorObject=selectedWorld?.workshop.objects.find(o=>o.id===directorObjectId)??selectedWorld?.workshop.objects[0];
@@ -76,9 +76,9 @@ export default function Studio(){
  },[ready,selectedWorld,room?.id]);
  useEffect(()=>{
   if(!ready)return;
-  try{engine.current?.setWorldPerformance(!room&&config.mode==='rave'&&performanceEnabled?performance:null);}
+  try{engine.current?.setWorldPerformance(!room&&config.mode==='rave'&&performanceEnabled?performanceShow:null);}
   catch(e){setComposerMessage(e instanceof Error?e.message:'Could not activate the performance.');}
- },[ready,room?.id,config.mode,performance,performanceEnabled]);
+ },[ready,room?.id,config.mode,performanceShow,performanceEnabled]);
  useEffect(()=>{
   if(!ready)return;
   try{engine.current?.setWorldVisuals(worldAudioMode,worldVisualGain);}
@@ -147,15 +147,15 @@ export default function Studio(){
   }catch(e){setComposerMessage('Show rejected: '+(e instanceof Error?e.message:'Invalid file'));}
  }
  function editShowCue(patch:Partial<WorldPerformanceCue>){
-  if(!performance||active||room)return;
-  try{setPerformance(editPerformanceCue(performance,selectedPhrase,patch));setComposerMessage('Phrase direction updated. Export show to keep your changes.');}
+  if(!performanceShow||active||room)return;
+  try{setPerformance(editPerformanceCue(performanceShow,selectedPhrase,patch));setComposerMessage('Phrase direction updated. Export show to keep your changes.');}
   catch(e){setComposerMessage(e instanceof Error?e.message:'Invalid visual cue');}
  }
  function exportPerformance(){
-  if(!performance)return;
+  if(!performanceShow)return;
   try{
-   const url=URL.createObjectURL(new Blob([writePerformance(performance)],{type:'application/json'}));
-   const a=document.createElement('a');a.href=url;a.download='pulse369-world-performance-v1.json';a.click();
+   const url=URL.createObjectURL(new Blob([writePerformance(performanceShow)],{type:'application/json'}));
+   const a=document.createElement('a');a.href=url;a.download='pulse369-world-performanceShow-v1.json';a.click();
    window.setTimeout(()=>URL.revokeObjectURL(url),1000);
    setComposerMessage('Show downloaded. Its worlds and cue map are portable; audio files and workout history are excluded.');
   }catch(e){setComposerMessage(e instanceof Error?e.message:'Could not export show.');}
@@ -223,7 +223,7 @@ export default function Studio(){
     <div className="studio-grid">
      <section className="stage" aria-label="Workout stage">
       <GameView onReady={onReady} onStatus={setStatus} onFinish={onFinish} onError={setError}/>
-      <div className="stage-top"><div><p className="eyebrow" style={{color:'#d7c0fb'}}>{!room&&performanceEnabled&&performance&&config.mode==='rave'?performance.title:!room&&selectedWorld?selectedWorld.title:WORLDS.find(w=>w.id===(config.world??'temple'))?.title}</p><h2 className="stage-title">{mode.title}</h2><p className="stage-caption">{active?status.cue:mode.cue}</p></div><div className="stat-float"><strong>{active?clock(Math.max(0,config.minutes*60-status.elapsed)):`${config.minutes}:00`}</strong><span>{active?`${status.score.toLocaleString()} pts · ${status.combo} combo`:'Your next session'}</span>{active&&status.stage&&<span className="phase-label">{status.stage}{status.phaseRemaining?' · '+clock(status.phaseRemaining):''}</span>}</div></div>
+      <div className="stage-top"><div><p className="eyebrow" style={{color:'#d7c0fb'}}>{!room&&performanceEnabled&&performanceShow&&config.mode==='rave'?performance.title:!room&&selectedWorld?selectedWorld.title:WORLDS.find(w=>w.id===(config.world??'temple'))?.title}</p><h2 className="stage-title">{mode.title}</h2><p className="stage-caption">{active?status.cue:mode.cue}</p></div><div className="stat-float"><strong>{active?clock(Math.max(0,config.minutes*60-status.elapsed)):`${config.minutes}:00`}</strong><span>{active?`${status.score.toLocaleString()} pts · ${status.combo} combo`:'Your next session'}</span>{active&&status.stage&&<span className="phase-label">{status.stage}{status.phaseRemaining?' · '+clock(status.phaseRemaining):''}</span>}</div></div>
       {config.coach!=='none'&&<div className="coach-ticker"><Sparkles size={16}/><div><strong>{active?status.coachCue:COACHES.find(c=>c.id===config.coach)?.name+' is ready'}</strong><p>{active?status.coachDetail:'Your coach demonstrates the moves. Follow at your own pace.'}</p></div></div>}
       {!isActive(config.mode)&&status.phase==='playing'&&<div className="recover-guide">{movement&&<div className="movement-progress"><span>Movement {movement.step} / {movement.total} · {Math.ceil(movement.remaining)} sec</span><Progress className="progress" value={(30-movement.remaining)/30*100} aria-label="Current movement progress"/></div>}<h2>{status.cue}</h2><p>{status.detail}</p></div>}
       {isActive(config.mode)&&status.phase==='playing'&&!status.vr&&<div className="touch-controls">{['A','S','K','L'].map((key,i)=><button key={key} aria-label={`${i<2?'Left':'Right'} ${i%2===0?'high':'low'} target`} onPointerDown={e=>{e.preventDefault();engine.current?.hitLane(i);}}>{key}</button>)}</div>}
@@ -266,10 +266,10 @@ export default function Studio(){
         <p className="music-rule">Map actual DanceFlow phrases to up to three authored worlds. Each transition stays behind the target corridor. Build and edit only between sessions.</p>
         <label htmlFor="wf-chart-file">Import DanceFlow choreography or chart-based DanceFlow show</label>
         <input id="wf-chart-file" type="file" accept=".json,application/json" disabled={active||!!room||customWorlds.length===0} onChange={e=>void importDanceChart(e)}/>
-        <label htmlFor="wf-performance-file">Open saved World Performance</label>
-        <input id="wf-performance-file" type="file" accept=".json,application/json" disabled={active||!!room} onChange={e=>void importPerformance(e)}/>
+        <label htmlFor="wf-performanceShow-file">Open saved World Performance</label>
+        <input id="wf-performanceShow-file" type="file" accept=".json,application/json" disabled={active||!!room} onChange={e=>void importPerformance(e)}/>
         <p className="music-rule" role="status">{composerMessage}</p>
-        {!!performance&&<>
+        {!!performanceShow&&<>
           <div className="setting-row"><label htmlFor="wf-show-enabled">Use authored performance in solo rave</label><input id="wf-show-enabled" type="checkbox" checked={performanceEnabled} disabled={active||!!room} onChange={e=>setPerformanceEnabled(e.target.checked)}/></div>
           <label htmlFor="wf-phrase">DanceFlow phrase</label>
           <select id="wf-phrase" value={Math.min(selectedPhrase,performance.cues.length-1)} onChange={e=>setSelectedPhrase(Number(e.target.value))}>
