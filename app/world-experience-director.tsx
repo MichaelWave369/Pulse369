@@ -1,7 +1,7 @@
 'use client';
 import {useEffect,useMemo,useState} from 'react';
-import type {WorldPerformance} from '../portal/world-performance.mjs';
-import {createDirectorSheet,experiencePreflight,directorAt,type DirectorStatus}
+import {samplePerformance,type WorldPerformance} from '../portal/world-performance.mjs';
+import {experiencePreflight,type DirectorStatus}
  from '../portal/world-experience-director.mjs';
 import type {PulseGame} from '../lib/game-engine';
 
@@ -37,7 +37,7 @@ export default function WorldExperienceDirector({engine,show,enabled,active,room
  });
  const seek=(time:number)=>apply(()=>engine!.seekDirectorRehearsal(time));
  const play=(value:boolean)=>apply(()=>engine!.setDirectorRehearsalPlaying(value));
- const current=useMemo(()=>show&&plan?directorAt(show,Math.min(clock.seconds,plan.sheet.durationSeconds)):null,
+ const current=useMemo(()=>show&&plan?samplePerformance(show,Math.min(clock.seconds,plan.sheet.durationSeconds)):null,
   [show,plan,clock.seconds]);
  const launch=()=>{
   if(!available)return;
@@ -67,7 +67,7 @@ export default function WorldExperienceDirector({engine,show,enabled,active,room
     value={Math.min(clock.seconds,plan.sheet.durationSeconds)} disabled={!sampling}
     onChange={e=>seek(Number(e.target.value))}/>
    {!!current&&sampling&&<p className="music-rule" role="status">
-    Showing: {current.phrase} · {current.worldTitle} · {current.palette} · transition blend {Math.round(current.transitionBlend*100)}%
+    Showing: {current.phraseName} · {plan.sheet.phrases[current.phraseIndex].worldTitle} · {current.palette} · transition blend {Math.round(current.blend*100)}%
    </p>}
    <strong style={{fontSize:12}}>Authored cue sheet (tap a phrase to rehearse)</strong>
    <div style={{display:'grid',gap:6}}>
