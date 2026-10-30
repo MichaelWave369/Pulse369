@@ -7,6 +7,7 @@ import {normalizePerformance,samplePerformance,type WorldPerformance} from '../p
 import {sceneTransitionPolicy,performanceBudgetReport,type RenderTier} from '../portal/world-render-budget.mjs';
 import type {WorldAudioFrame} from '../portal/world-audio-frame.mjs';
 import {GOVERNOR_LEVELS} from '../portal/world-adaptive-governor.mjs';
+import {createDirectorSheet} from '../portal/world-experience-director.mjs';
 
 export class PerformanceWorkoutWorld {
  readonly root=new THREE.Group();
@@ -34,6 +35,7 @@ export class PerformanceWorkoutWorld {
   if(!Number.isInteger(level)||level<0||level>2)throw Error('Invalid adaptive effect tier');
   this.adaptiveLevel=level;
  }
+ getDirectorDuration(){return createDirectorSheet(this.show).durationSeconds;}
  getFrameTelemetry(){return {activeStages:this.visibleStages.size,phraseIndex:this.lastPhraseIndex,reason:this.lastTransitionReason,adaptiveLevel:this.adaptiveLevel};}
  getRenderStatus(){
   return {tier:this.quality,activeStages:this.visibleStages.size,reason:this.lastTransitionReason,
