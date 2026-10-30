@@ -14,7 +14,7 @@ test('R10 authored storyboard follows repeats, manual offset and scene map witho
    phrases:[{...starterChart().phrases[0],repeat:3},starterChart().phrases[1]]});
  const alt=createPerformance(variant,[SAMPLE_WORLD]);
  assert.equal(createDirectorSheet(alt).phrases[1].startCount,24);
- assert.equal(createDirectorSheet(alt).phrases[1].startSeconds,.5+24*60/112);
+ assert.equal(createDirectorSheet(alt).phrases[1].startSeconds,Math.round((.5+24*60/112)*1000)/1000);
 });
 test('R10 visual rehearsal pauses on inactivity, wraps without affecting audio/gameplay',()=>{
  const clock=createDirectorClock();
