@@ -121,6 +121,7 @@ export class PulseGame {
       this.worldAudioMode==='live'&&active&&elapsed>=0?this.audio.sampleVisualFrame():
       {energy:0,bass:0,mid:0,high:0,beat:0};
     if(this.performanceWorld){
+      this.performanceWorld.setQuality(this.renderer.xr.isPresenting?'quest':'desktop');
       this.performanceWorld.update(seconds,this.config.track.bpm,
        this.config.calm||this.worldAudioMode==='still',input,this.worldVisualGain,visualTime);
     }else this.customWorld?.update(seconds,this.config.track.bpm,
