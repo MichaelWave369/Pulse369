@@ -37,7 +37,7 @@ export function readAcceptanceReceipt(input){
    m.callbackFrames<1||!m.xrObserved||m.recording||
    m.validIntervals>Math.max(0,m.callbackFrames-1)||
    m.longGaps>m.callbackFrames||m.sceneChanges>m.callbackFrames||
-   m.autoCuts>m.callbackFrames||m.enoughForReview!==(m.callbackFrames>=180&&m.elapsedSeconds>=14.9)||
+   m.autoCuts>m.callbackFrames||(m.enoughForReview&&(m.callbackFrames<180||m.elapsedSeconds<14.9))||
    (m.validIntervals===0)!==(m.medianCallbackMs===null&&m.p95CallbackMs===null&&m.estimatedCallbackHz===null))
    throw Error('Invalid or inconsistent XR callback measurements');
  const manual=raw.manualChecklist;
