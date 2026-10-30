@@ -24,7 +24,7 @@ try{
  xrDiagnostics.start();
  check(!xrDiagnostics.capture({timeMs:10,xrPresenting:false,calls:3,triangles:2400,activeStages:1,phraseIndex:0,reason:'single-stage'}),
   'R7 never converts a desktop mock frame into XR evidence');
- for(let i=0;i<1080;i++){
+ for(let i=0;i<1100;i++){
   xrDiagnostics.capture({timeMs:i*1000/72,xrPresenting:true,calls:3,triangles:2400,
    activeStages:1,phraseIndex:i<540?0:1,reason:'single-stage'});
  }
