@@ -11,6 +11,7 @@ import GameView from './game-view';
 import {MAX_FILE_BYTES,readWorldFile,writeWorldPack,type WorldPack, type MotionBand} from '../portal/world-bridge.mjs';
 import {assignObjectBand,WORLD_BANDS} from '../portal/world-director.mjs';
 import {MAX_PERFORMANCE_BYTES,createPerformance,readPerformance,writePerformance,editPerformanceCue,importDanceFlow,PALETTES,TRANSITIONS,type WorldPerformance,type WorldPerformanceCue} from '../portal/world-performance.mjs';
+import {performanceBudgetReport} from '../portal/world-render-budget.mjs';
 import HeartMonitorPanel from './heart-monitor';
 import ClanHub from './clan-hub';
 import PathHub from './path-hub';
@@ -46,6 +47,7 @@ export default function Studio(){
  const [selectedPhrase,setSelectedPhrase]=useState(0);
  const [composerMessage,setComposerMessage]=useState('Import an authored DanceFlow chart, or open a saved World Performance.');
  const activeCue=performanceShow?.cues[Math.min(selectedPhrase,performanceShow.cues.length-1)];
+ const headsetBudget=performanceShow?performanceBudgetReport(performanceShow,'quest'):null;
  const [worldMessage,setWorldMessage]=useState('Import up to three locally authored worlds. They stay in this tab unless you export a WorldPack file.');
  const selectedWorld=customWorlds.find(w=>w.id===selectedWorldId)?.pack??null;
  const directorObject=selectedWorld?.workshop.objects.find(o=>o.id===directorObjectId)??selectedWorld?.workshop.objects[0];
@@ -291,6 +293,11 @@ export default function Studio(){
           <select id="wf-transition" value={activeCue?.transitionCounts??0} disabled={active||!!room} onChange={e=>editShowCue({transitionCounts:Number(e.target.value) as WorldPerformanceCue['transitionCounts']})}>
            {TRANSITIONS.map(n=><option key={n} value={n}>{n===0?'Cut':n+' counts'}</option>)}
           </select>
+          {!!headsetBudget&&<p className="music-rule" role="status">
+            Quest scene estimate: {headsetBudget.worlds.reduce((n,w)=>Math.max(n,w.triangles),0).toLocaleString()} maximum single-scene triangles · {headsetBudget.cuts} transitions will use an instant cut instead of a crossfade to protect the render budget.
+            {headsetBudget.heavyWorlds>0?' Caution: '+headsetBudget.heavyWorlds+' single scenes exceed the conservative Quest estimate. Reduce their geometry in Domistika before headset use.':''}
+            This is a geometry estimate, not a measured Quest frame rate.
+          </p>}
           <p className="music-rule">Authored chart: {performanceShow.chart.bpm} BPM · {performanceShow.chart.offsetMs} ms offset. Current track: {config.track.bpm} BPM. {config.track.bpm!==performanceShow.chart.bpm?'Adjust the chart BPM before exporting if you need accurate phrase alignment.':'Phrase timing matches the selected track BPM.'} This affects visuals only, never the target chart.</p>
           <button type="button" className="btn small" onClick={exportPerformance}>Export World Performance</button>
         </>}

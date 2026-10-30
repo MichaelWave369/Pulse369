@@ -45,6 +45,28 @@ try{
  check(mixed.visibleStages.size===1,'Old scenes dispose when the authored transition completes');
  mixed.dispose();
  check(mixed.visibleStages.size===0,'All authored world geometry is disposed at teardown');
+ const {estimateWorldCost,sceneTransitionPolicy,performanceBudgetReport}=await import(pathToFileURL(path.resolve('portal/world-render-budget.mjs')).href);
+ const heavyObjects=Array.from({length:48},(_,i)=>({...SAMPLE_WORLD.workshop.objects[0],
+   id:'work-quest-r5-'+String(i).padStart(4,'0'),name:'Quest knot '+i,kind:'tube',dimensions:[1,1,1]}));
+ const heavyWorld={...SAMPLE_WORLD,workshop:{schema:'domistika.xr.workshop.v1',objects:heavyObjects}};
+ const heavyShow=createPerformance(authored,[heavyWorld,{...heavyWorld,title:'Heavy second world'}]);
+ const projected=estimateWorldCost(heavyWorld,'quest');
+ check(projected.triangles===48*480&&projected.draws===48,'R5 counts actual Quest torus-knot tessellation and draw calls.');
+ check(!sceneTransitionPolicy(heavyShow.worlds,0,1,'quest').crossfade
+   &&sceneTransitionPolicy(heavyShow.worlds,0,1,'desktop').crossfade,
+   'R5 VR auto-cut prevents two expensive worlds while desktop can still crossfade.');
+ check(performanceBudgetReport(heavyShow,'quest').cuts>0,'R5 preflight exposes headset scene cuts before training.');
+ const capped=new PerformanceWorkoutWorld(heavyShow);
+ capped.setQuality('quest');
+ capped.update(transitionStart,authored.bpm,false,undefined,1,transitionStart);
+ check(capped.visibleStages.size===1&&capped.getRenderStatus().reason==='crossfade-over-budget',
+   'R5 chooses one world BEFORE a Quest over-budget transition allocation.');
+ capped.setQuality('desktop');
+ check(capped.visibleStages.size===0,'R5 headset-to-desktop tier change disposes incompatible GPU geometry.');
+ capped.update(transitionStart,authored.bpm,false,undefined,1,transitionStart);
+ check(capped.visibleStages.size===2,'R5 desktop mode preserves original smooth visual crossfade.');
+ capped.dispose();
+ check(capped.visibleStages.size===0,'R5 safe scene mixer releases all resident geometry.');
  check(visualCueForSession(SAMPLE_WORLD.show,4,120,0,true).title==='Flow','Rave visual scenes change at eight-count boundaries.');
  const {spectrumBands,ZERO_WORLD_AUDIO}=await import(pathToFileURL(path.resolve('portal/world-audio-frame.mjs')).href);
  const {assignObjectBand}=await import(pathToFileURL(path.resolve('portal/world-director.mjs')).href);

@@ -15,8 +15,8 @@ export class CustomWorkoutWorld {
   private readonly materials:THREE.MeshStandardMaterial[]=[];
   private readonly lights:{light:THREE.Light;intensity:number}[]=[];
 
-  constructor(pack:WorldPack){
-    this.visual=createWorldVisual(pack);
+  constructor(pack:WorldPack,quality:'desktop'|'quest'='desktop'){
+    this.visual=createWorldVisual(pack,{quality});
     this.root=this.visual.stage;
     this.title=pack.title;
     // The renderer's first child is the authored installation; its helper grid
