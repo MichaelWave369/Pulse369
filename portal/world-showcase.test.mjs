@@ -1,0 +1,32 @@
+import test from 'node:test';import assert from 'node:assert/strict';
+import {SAMPLE_WORLD} from './world-bridge.mjs';
+import {starterChart} from './choreo-model.mjs';
+import {createPerformance,writePerformance} from './world-performance.mjs';
+import {showcaseManifest,createShowcaseNavigator,WALK_BOUNDS} from './world-showcase.mjs';
+const show=createPerformance(starterChart(),[SAMPLE_WORLD,{...SAMPLE_WORLD,title:'The second room'}]);
+test('R11 gallery manifest is derived from validated authored rooms without mutating show',()=>{
+ const initial=writePerformance(show);
+ const manifest=showcaseManifest(show);
+ assert.equal(manifest.roomCount,2);
+ assert.equal(manifest.rooms[0].title,SAMPLE_WORLD.title);
+ assert.equal(manifest.rooms[1].title,'The second room');
+ assert.ok(manifest.rooms[0].questTriangles>0);
+ assert.equal(writePerformance(show),initial);
+});
+test('R11 gallery navigation is bounded, slow, explicit, deterministic and does not score',()=>{
+ const n=createShowcaseNavigator(2);
+ assert.equal(n.status().roomCount,2);
+ n.move(1,0,.05);
+ assert.equal(n.status().z<2.2,true);
+ for(let i=0;i<5000;i++)n.move(1,1,.05);
+ const s=n.status();
+ assert.ok(s.x<=WALK_BOUNDS.maxX&&s.z>=WALK_BOUNDS.minZ);
+ n.select(1);
+ assert.deepEqual(n.status(),{index:1,x:0,z:2.2,yaw:0,roomCount:2});
+ n.turn(Math.PI/4);
+ assert.ok(n.status().yaw>0);
+ assert.throws(()=>n.move(2,0,.05),/locomotion/);
+ assert.throws(()=>n.move(0,1,1),/locomotion/);
+ assert.throws(()=>n.select(2),/room/);
+ assert.throws(()=>createShowcaseNavigator(0),/one to three/);
+});

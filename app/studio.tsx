@@ -12,6 +12,7 @@ import WorldPerformanceLibrary from './world-performance-library';
 import WorldAcceptanceLab from './world-acceptance-lab';
 import WorldAdaptiveGovernor from './world-adaptive-governor';
 import WorldExperienceDirector from './world-experience-director';
+import WorldShowcase from './world-showcase';
 import {MAX_FILE_BYTES,readWorldFile,writeWorldPack,type WorldPack, type MotionBand} from '../portal/world-bridge.mjs';
 import {assignObjectBand,WORLD_BANDS} from '../portal/world-director.mjs';
 import {MAX_PERFORMANCE_BYTES,createPerformance,readPerformance,writePerformance,editPerformanceCue,importDanceFlow,PALETTES,TRANSITIONS,type WorldPerformance,type WorldPerformanceCue} from '../portal/world-performance.mjs';
@@ -312,6 +313,8 @@ export default function Studio(){
         <WorldExperienceDirector engine={ready?engine.current:null} show={performanceShow}
          enabled={performanceEnabled&&config.mode==='rave'} active={active} roomActive={!!room}
          trackBpm={config.track.bpm} vrAvailable={vrAvailable} onEnterVR={enterVR}/>
+        <WorldShowcase engine={ready?engine.current:null} show={performanceShow}
+         active={active} roomActive={!!room} vrAvailable={vrAvailable}/>
         <WorldAdaptiveGovernor engine={ready?engine.current:null} showReady={!!performanceShow&&performanceEnabled} roomActive={!!room}/>
         <WorldAcceptanceLab engine={ready?engine.current:null} showReady={!!performanceShow&&performanceEnabled} roomActive={!!room}/>
        </div>}
