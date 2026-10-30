@@ -1,33 +1,55 @@
-/** Visual-only R4 performance stage: at most two active Domistika worlds.
- * Full scene disposal on phrase change, never changes target/HUD/camera/audio.
+/** World Forge R5: one or two bounded visual worlds; Quest crossfades never exceed
+ * the reviewed object/draw estimate. Workouts, audio and controller tracking untouched.
  */
 import * as THREE from 'three';
 import {CustomWorkoutWorld} from './custom-workout-world';
 import {normalizePerformance,samplePerformance,type WorldPerformance} from '../portal/world-performance.mjs';
+import {sceneTransitionPolicy,performanceBudgetReport,type RenderTier} from '../portal/world-render-budget.mjs';
 import type {WorldAudioFrame} from '../portal/world-audio-frame.mjs';
 
 export class PerformanceWorkoutWorld {
  readonly root=new THREE.Group();
  private readonly show:WorldPerformance;
  private readonly visibleStages=new Map<number,CustomWorkoutWorld>();
+ private quality:RenderTier='desktop';
+ private lastTransitionReason='initial';
  readonly title:string;
  constructor(source:WorldPerformance){
   this.show=normalizePerformance(source);
   this.title=this.show.title;
-  this.root.name='World Forge R4 · visual-only performance';
+  this.root.name='World Forge R5 · visual-only performance';
+ }
+ /** GPU material and buffer instances are invalidated on desktop ↔ headset change.
+  * This is independent of play/pause, chart state and the real workout clock.
+  */
+ setQuality(quality:RenderTier){
+  if(quality!=='quest'&&quality!=='desktop')throw Error('Unsupported render tier');
+  if(quality===this.quality)return;
+  this.clearStages();this.quality=quality;
+ }
+ getRenderStatus(){
+  return {tier:this.quality,activeStages:this.visibleStages.size,reason:this.lastTransitionReason,
+   estimate:performanceBudgetReport(this.show,this.quality)};
+ }
+ private clearStages(){
+  for(const stage of this.visibleStages.values())stage.dispose();
+  this.visibleStages.clear();
  }
  update(seconds:number,bpm:number,reducedMotion:boolean,audioFrame:WorldAudioFrame|undefined,
   visualGain:number,renderTime:number){
   const cue=samplePerformance(this.show,Math.max(0,seconds));
-  const transitioning=cue.blend<1&&cue.previousWorldIndex!==cue.worldIndex;
+  const policy=sceneTransitionPolicy(this.show.worlds,cue.previousWorldIndex,cue.worldIndex,this.quality);
+  const transitioning=cue.blend<1&&cue.previousWorldIndex!==cue.worldIndex&&policy.crossfade;
+  this.lastTransitionReason=cue.blend<1&&cue.previousWorldIndex!==cue.worldIndex?
+    policy.reason:'single-stage';
   const required=new Set(transitioning?[cue.previousWorldIndex,cue.worldIndex]:[cue.worldIndex]);
-  // Upper limit: two GPU resident authored scenes, even if the show contains three.
+  // Cut first: no transient third or second scene can be allocated during a budget fallback.
   for(const [index,stage] of this.visibleStages){
    if(!required.has(index)){stage.dispose();this.visibleStages.delete(index);}
   }
   for(const index of required){
    if(!this.visibleStages.has(index)){
-    const stage=new CustomWorkoutWorld(this.show.worlds[index]);
+    const stage=new CustomWorkoutWorld(this.show.worlds[index],this.quality);
     this.visibleStages.set(index,stage);
     this.root.add(stage.root);
    }
@@ -44,8 +66,7 @@ export class PerformanceWorkoutWorld {
   }
  }
  dispose(){
-  for(const stage of this.visibleStages.values())stage.dispose();
-  this.visibleStages.clear();
+  this.clearStages();
   this.root.removeFromParent();
  }
 }
