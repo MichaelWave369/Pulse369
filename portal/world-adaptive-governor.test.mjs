@@ -1,0 +1,54 @@
+import test from 'node:test';import assert from 'node:assert/strict';
+import {createVisualGovernor,GOVERNOR_LEVELS} from './world-adaptive-governor.mjs';
+const drive=(g,rate,count,time=0)=>{for(let i=0;i<count;i++){time+=1000/rate;g.observe(time,true);}return time;};
+test('R9 is off by default, inert on desktop and does not persist hardware data',()=>{
+ const g=createVisualGovernor();
+ drive(g,22,1000);assert.equal(g.status().xrCallbacks,0);
+ g.setEnabled(true);
+ for(let i=0;i<400;i++)g.observe(i*40,false);
+ assert.equal(g.status().level,0);assert.equal(g.status().xrCallbacks,0);
+ assert.equal(g.status().immersive,false);
+ assert.equal(Object.keys(g.status()).includes('headPose'),false);
+});
+test('R9 sustained slow callbacks conservatively downgrade effects without sudden oscillation',()=>{
+ const g=createVisualGovernor();g.setEnabled(true);
+ let t=drive(g,72,240);
+ assert.equal(g.status().level,0);
+ t=drive(g,25,190,t);
+ assert.equal(g.status().level,1);
+ assert.equal(g.status().downgrades,1);
+ t=drive(g,25,220,t);
+ assert.equal(g.status().level,2);
+ assert.equal(GOVERNOR_LEVELS[2].allowCrossfade,false);
+ assert.equal(g.status().downgrades,2);
+ t=drive(g,72,300,t);
+ assert.equal(g.status().level,2,'recovery requires 8 consecutive full windows');
+ t=drive(g,72,300,t);
+ assert.equal(g.status().level,1);
+ t=drive(g,72,600,t);
+ assert.equal(g.status().level,0);
+ assert.ok(g.status().recoveries>=2);
+});
+test('R9 no thrash on a single bad window; session reset restores visuals',()=>{
+ const g=createVisualGovernor();g.setEnabled(true);
+ let t=drive(g,72,130);
+ t=drive(g,20,70,t);
+ t=drive(g,72,150,t);
+ assert.equal(g.status().level,0);
+ g.observe(t+500,false);
+ assert.equal(g.status().immersive,false);assert.equal(g.status().level,0);
+ assert.equal(g.status().xrCallbacks>0,true);
+ g.observe(t+550,true);
+ assert.equal(g.status().xrCallbacks,1);
+ g.setEnabled(false);
+ assert.equal(g.status().enabled,false);assert.equal(g.status().level,0);
+ assert.throws(()=>g.setEnabled('yes'),/boolean/);
+});
+test('R9 discards long suspension gaps and invalid timestamps rather than inferring GPU performance',()=>{
+ const g=createVisualGovernor();g.setEnabled(true);
+ let t=drive(g,72,100);
+ g.observe(t+2000,true);
+ assert.equal(g.status().ignoredLongGaps,1);
+ g.observe(NaN,true);g.observe(t+1800,true);
+ assert.equal(g.status().level,0);
+});
