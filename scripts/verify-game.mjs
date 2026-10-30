@@ -103,8 +103,36 @@ try{
  const {visualCueForSession}=await import(pathToFileURL(path.resolve('portal/world-visual-clock.mjs')).href);
  const {starterChart}=await import(pathToFileURL(path.resolve('portal/choreo-model.mjs')).href);
  const {createPerformance,editPerformanceCue,samplePerformance,writePerformance,readPerformance}=await import(pathToFileURL(path.resolve('portal/world-performance.mjs')).href);
+ const {createDirectorSheet,createDirectorClock,experiencePreflight,directorAt}=await import(pathToFileURL(path.resolve('portal/world-experience-director.mjs')).href);
  const authored=starterChart();
  const composed=createPerformance(authored,[SAMPLE_WORLD,{...SAMPLE_WORLD,title:'Second Domistika realm'}]);
+ const directorSheet=createDirectorSheet(composed),oldWorldJson=writePerformance(composed);
+ check(directorSheet.phrases.length===authored.phrases.length&&directorSheet.phrases[1].worldIndex===1
+   &&directorSheet.phrases[1].startCount===8,
+   'R10 visual director derives storyboard directly from authored DanceFlow counts and WorldPacks');
+ check(directorAt(composed,8*60/authored.bpm).phraseIndex===1,
+   'R10 visual cursor seeks to the correct authored scene without changing gameplay targets');
+ check(!experiencePreflight(composed,authored.bpm+8).matchedTrackBpm,
+   'R10 director warns about visual/song BPM mismatches before immersive launch');
+ const fakeRehearsal=Object.create(PulseGame.prototype);
+ const clock=createDirectorClock();
+ Object.assign(fakeRehearsal,{
+   performanceWorld:{getDirectorDuration:()=>directorSheet.durationSeconds},
+   directorClock:clock,renderer:{xr:{isPresenting:false}},status:{phase:'idle'}
+ });
+ fakeRehearsal.setDirectorRehearsalEnabled(true);
+ fakeRehearsal.seekDirectorRehearsal(directorSheet.phrases[1].startSeconds);
+ fakeRehearsal.setDirectorRehearsalPlaying(true);
+ check(clock.status().playing&&clock.status().seconds===directorSheet.phrases[1].startSeconds,
+   'R10 real game API can silently seek and play the authored stage while idle');
+ fakeRehearsal.status.phase='playing';
+ let rehearsalBlocked=false;
+ try{fakeRehearsal.seekDirectorRehearsal(5);}catch{rehearsalBlocked=true;}
+ check(rehearsalBlocked,'R10 does not allow rehearsal to replace the live workout session clock');
+ fakeRehearsal.setDirectorRehearsalEnabled(false);
+ check(!clock.status().enabled&&!clock.status().playing&&writePerformance(composed)===oldWorldJson,
+   'R10 toggling rehearsal off restores visuals and never edits the portable creative show');
+
  const libraryBundle=await createBundle(composed,{creator:'Offline test artist',description:'A show',license:'CC0-1.0',tags:['world']});
  check(libraryBundle.preview.scenes.length===2&&libraryBundle.preview.phrases===authored.phrases.length,
    'R6 manifest previews come directly from validated portable authored worlds.');
