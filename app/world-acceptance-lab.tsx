@@ -1,6 +1,7 @@
 'use client';
 import {useEffect,useState} from 'react';
 import type {PulseGame} from '../lib/game-engine';
+import WorldAcceptanceCompare from './world-acceptance-compare';
 import {CHECKLIST,type AcceptanceChecklist,type AcceptanceMeasurements}
  from '../portal/world-acceptance.mjs';
 
@@ -77,5 +78,6 @@ export default function WorldAcceptanceLab({engine,showReady,roomActive}:{
    <span>{ITEMS[key]}</span>
   </label>)}
   <p className="music-rule">Desktop rehearsal cannot create XR frame evidence. To compare desktop-to-Quest, download the R6 bundle on desktop, transfer the JSON to the headset, import it in Quest Browser, then start this capture before entering VR. Mark each item only after personally checking it. No automatic “passed” designation is issued.</p>
+  <WorldAcceptanceCompare/>
  </section>;
 }
