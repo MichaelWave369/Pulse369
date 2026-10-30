@@ -33,6 +33,8 @@ jobs:
         run: node scripts/verify-game.mjs
       - name: World Forge R9 adaptive visual governor unit tests
         run: node --test portal/world-adaptive-governor.test.mjs
+      - name: World Forge R10 immersive experience director rehearsal and preflight tests
+        run: node --test portal/world-experience-director.test.mjs
       - name: Build browser and Worker
         run: pnpm run build
       - name: Build public React portal
