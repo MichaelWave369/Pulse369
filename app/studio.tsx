@@ -45,7 +45,7 @@ export default function Studio(){
  const [performanceEnabled,setPerformanceEnabled]=useState(false);
  const [selectedPhrase,setSelectedPhrase]=useState(0);
  const [composerMessage,setComposerMessage]=useState('Import an authored DanceFlow chart, or open a saved World Performance.');
- const activeCue=performanceShow?.cues[Math.min(selectedPhrase,performance.cues.length-1)];
+ const activeCue=performanceShow?.cues[Math.min(selectedPhrase,performanceShow.cues.length-1)];
  const [worldMessage,setWorldMessage]=useState('Import up to three locally authored worlds. They stay in this tab unless you export a WorldPack file.');
  const selectedWorld=customWorlds.find(w=>w.id===selectedWorldId)?.pack??null;
  const directorObject=selectedWorld?.workshop.objects.find(o=>o.id===directorObjectId)??selectedWorld?.workshop.objects[0];
@@ -155,7 +155,7 @@ export default function Studio(){
   if(!performanceShow)return;
   try{
    const url=URL.createObjectURL(new Blob([writePerformance(performanceShow)],{type:'application/json'}));
-   const a=document.createElement('a');a.href=url;a.download='pulse369-world-performanceShow-v1.json';a.click();
+   const a=document.createElement('a');a.href=url;a.download='pulse369-world-performance-v1.json';a.click();
    window.setTimeout(()=>URL.revokeObjectURL(url),1000);
    setComposerMessage('Show downloaded. Its worlds and cue map are portable; audio files and workout history are excluded.');
   }catch(e){setComposerMessage(e instanceof Error?e.message:'Could not export show.');}
@@ -223,7 +223,7 @@ export default function Studio(){
     <div className="studio-grid">
      <section className="stage" aria-label="Workout stage">
       <GameView onReady={onReady} onStatus={setStatus} onFinish={onFinish} onError={setError}/>
-      <div className="stage-top"><div><p className="eyebrow" style={{color:'#d7c0fb'}}>{!room&&performanceEnabled&&performanceShow&&config.mode==='rave'?performance.title:!room&&selectedWorld?selectedWorld.title:WORLDS.find(w=>w.id===(config.world??'temple'))?.title}</p><h2 className="stage-title">{mode.title}</h2><p className="stage-caption">{active?status.cue:mode.cue}</p></div><div className="stat-float"><strong>{active?clock(Math.max(0,config.minutes*60-status.elapsed)):`${config.minutes}:00`}</strong><span>{active?`${status.score.toLocaleString()} pts · ${status.combo} combo`:'Your next session'}</span>{active&&status.stage&&<span className="phase-label">{status.stage}{status.phaseRemaining?' · '+clock(status.phaseRemaining):''}</span>}</div></div>
+      <div className="stage-top"><div><p className="eyebrow" style={{color:'#d7c0fb'}}>{!room&&performanceEnabled&&performanceShow&&config.mode==='rave'?performanceShow.title:!room&&selectedWorld?selectedWorld.title:WORLDS.find(w=>w.id===(config.world??'temple'))?.title}</p><h2 className="stage-title">{mode.title}</h2><p className="stage-caption">{active?status.cue:mode.cue}</p></div><div className="stat-float"><strong>{active?clock(Math.max(0,config.minutes*60-status.elapsed)):`${config.minutes}:00`}</strong><span>{active?`${status.score.toLocaleString()} pts · ${status.combo} combo`:'Your next session'}</span>{active&&status.stage&&<span className="phase-label">{status.stage}{status.phaseRemaining?' · '+clock(status.phaseRemaining):''}</span>}</div></div>
       {config.coach!=='none'&&<div className="coach-ticker"><Sparkles size={16}/><div><strong>{active?status.coachCue:COACHES.find(c=>c.id===config.coach)?.name+' is ready'}</strong><p>{active?status.coachDetail:'Your coach demonstrates the moves. Follow at your own pace.'}</p></div></div>}
       {!isActive(config.mode)&&status.phase==='playing'&&<div className="recover-guide">{movement&&<div className="movement-progress"><span>Movement {movement.step} / {movement.total} · {Math.ceil(movement.remaining)} sec</span><Progress className="progress" value={(30-movement.remaining)/30*100} aria-label="Current movement progress"/></div>}<h2>{status.cue}</h2><p>{status.detail}</p></div>}
       {isActive(config.mode)&&status.phase==='playing'&&!status.vr&&<div className="touch-controls">{['A','S','K','L'].map((key,i)=><button key={key} aria-label={`${i<2?'Left':'Right'} ${i%2===0?'high':'low'} target`} onPointerDown={e=>{e.preventDefault();engine.current?.hitLane(i);}}>{key}</button>)}</div>}
@@ -266,18 +266,18 @@ export default function Studio(){
         <p className="music-rule">Map actual DanceFlow phrases to up to three authored worlds. Each transition stays behind the target corridor. Build and edit only between sessions.</p>
         <label htmlFor="wf-chart-file">Import DanceFlow choreography or chart-based DanceFlow show</label>
         <input id="wf-chart-file" type="file" accept=".json,application/json" disabled={active||!!room||customWorlds.length===0} onChange={e=>void importDanceChart(e)}/>
-        <label htmlFor="wf-performanceShow-file">Open saved World Performance</label>
-        <input id="wf-performanceShow-file" type="file" accept=".json,application/json" disabled={active||!!room} onChange={e=>void importPerformance(e)}/>
+        <label htmlFor="wf-performance-file">Open saved World Performance</label>
+        <input id="wf-performance-file" type="file" accept=".json,application/json" disabled={active||!!room} onChange={e=>void importPerformance(e)}/>
         <p className="music-rule" role="status">{composerMessage}</p>
         {!!performanceShow&&<>
           <div className="setting-row"><label htmlFor="wf-show-enabled">Use authored performance in solo rave</label><input id="wf-show-enabled" type="checkbox" checked={performanceEnabled} disabled={active||!!room} onChange={e=>setPerformanceEnabled(e.target.checked)}/></div>
           <label htmlFor="wf-phrase">DanceFlow phrase</label>
-          <select id="wf-phrase" value={Math.min(selectedPhrase,performance.cues.length-1)} onChange={e=>setSelectedPhrase(Number(e.target.value))}>
-           {performance.chart.phrases.map((p,i)=><option key={i} value={i}>{i+1}. {p.name} · {p.repeat*8} counts</option>)}
+          <select id="wf-phrase" value={Math.min(selectedPhrase,performanceShow.cues.length-1)} onChange={e=>setSelectedPhrase(Number(e.target.value))}>
+           {performanceShow.chart.phrases.map((p,i)=><option key={i} value={i}>{i+1}. {p.name} · {p.repeat*8} counts</option>)}
           </select>
           <label htmlFor="wf-stage">Scene</label>
           <select id="wf-stage" value={activeCue?.worldIndex??0} disabled={active||!!room} onChange={e=>editShowCue({worldIndex:Number(e.target.value)})}>
-           {performance.worlds.map((w,i)=><option key={i} value={i}>{i+1}. {w.title}</option>)}
+           {performanceShow.worlds.map((w,i)=><option key={i} value={i}>{i+1}. {w.title}</option>)}
           </select>
           <label htmlFor="wf-palette">Palette</label>
           <select id="wf-palette" value={activeCue?.palette??'aurora'} disabled={active||!!room} onChange={e=>editShowCue({palette:e.target.value as WorldPerformanceCue['palette']})}>
@@ -291,7 +291,7 @@ export default function Studio(){
           <select id="wf-transition" value={activeCue?.transitionCounts??0} disabled={active||!!room} onChange={e=>editShowCue({transitionCounts:Number(e.target.value) as WorldPerformanceCue['transitionCounts']})}>
            {TRANSITIONS.map(n=><option key={n} value={n}>{n===0?'Cut':n+' counts'}</option>)}
           </select>
-          <p className="music-rule">Authored chart: {performance.chart.bpm} BPM · {performance.chart.offsetMs} ms offset. Current track: {config.track.bpm} BPM. {config.track.bpm!==performance.chart.bpm?'Adjust the chart BPM before exporting if you need accurate phrase alignment.':'Phrase timing matches the selected track BPM.'} This affects visuals only, never the target chart.</p>
+          <p className="music-rule">Authored chart: {performanceShow.chart.bpm} BPM · {performanceShow.chart.offsetMs} ms offset. Current track: {config.track.bpm} BPM. {config.track.bpm!==performanceShow.chart.bpm?'Adjust the chart BPM before exporting if you need accurate phrase alignment.':'Phrase timing matches the selected track BPM.'} This affects visuals only, never the target chart.</p>
           <button type="button" className="btn small" onClick={exportPerformance}>Export World Performance</button>
         </>}
        </div>}
