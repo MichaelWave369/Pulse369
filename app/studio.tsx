@@ -10,6 +10,7 @@ import { AlertDialog, AlertDialogContent, AlertDialogHeader, AlertDialogTitle, A
 import GameView from './game-view';
 import {MAX_FILE_BYTES,readWorldFile,writeWorldPack,type WorldPack, type MotionBand} from '../portal/world-bridge.mjs';
 import {assignObjectBand,WORLD_BANDS} from '../portal/world-director.mjs';
+import {MAX_PERFORMANCE_BYTES,createPerformance,readPerformance,writePerformance,editPerformanceCue,importDanceFlow,PALETTES,TRANSITIONS,type WorldPerformance,type WorldPerformanceCue} from '../portal/world-performance.mjs';
 import HeartMonitorPanel from './heart-monitor';
 import ClanHub from './clan-hub';
 import PathHub from './path-hub';
@@ -40,6 +41,11 @@ export default function Studio(){
  const [worldAudioMode,setWorldAudioMode]=useState<'live'|'tempo'|'still'>('live');
  const [worldVisualGain,setWorldVisualGain]=useState(1);
  const [directorObjectId,setDirectorObjectId]=useState('');
+ const [performanceShow,setPerformance]=useState<WorldPerformance|null>(null);
+ const [performanceEnabled,setPerformanceEnabled]=useState(false);
+ const [selectedPhrase,setSelectedPhrase]=useState(0);
+ const [composerMessage,setComposerMessage]=useState('Import an authored DanceFlow chart, or open a saved World Performance.');
+ const activeCue=performanceShow?.cues[Math.min(selectedPhrase,performanceShow.cues.length-1)];
  const [worldMessage,setWorldMessage]=useState('Import up to three locally authored worlds. They stay in this tab unless you export a WorldPack file.');
  const selectedWorld=customWorlds.find(w=>w.id===selectedWorldId)?.pack??null;
  const directorObject=selectedWorld?.workshop.objects.find(o=>o.id===directorObjectId)??selectedWorld?.workshop.objects[0];
@@ -68,6 +74,11 @@ export default function Studio(){
   try {engine.current?.setCustomWorld(room?null:selectedWorld);}
   catch(e){setWorldMessage(e instanceof Error?e.message:'Could not load your world; using the built-in stage.');}
  },[ready,selectedWorld,room?.id]);
+ useEffect(()=>{
+  if(!ready)return;
+  try{engine.current?.setWorldPerformance(!room&&config.mode==='rave'&&performanceEnabled?performanceShow:null);}
+  catch(e){setComposerMessage(e instanceof Error?e.message:'Could not activate the performance.');}
+ },[ready,room?.id,config.mode,performanceShow,performanceEnabled]);
  useEffect(()=>{
   if(!ready)return;
   try{engine.current?.setWorldVisuals(worldAudioMode,worldVisualGain);}
@@ -111,6 +122,43 @@ export default function Studio(){
    setCustomWorlds(worlds=>worlds.map(w=>w.id===selectedWorldId?{...w,pack:revised}:w));
    setWorldMessage(directorObject.name+' now reacts to '+band+'. Export the WorldPack to preserve this visual assignment.');
   }catch(e){setWorldMessage(e instanceof Error?e.message:'Could not edit visual band.');}
+ }
+ async function importDanceChart(event:React.ChangeEvent<HTMLInputElement>){
+  const file=event.currentTarget.files?.[0];event.currentTarget.value='';
+  if(!file||active||room)return;
+  try{
+   if(customWorlds.length<1)throw Error('First load at least one Domistika world into the shelf.');
+   if(file.size>131072||!file.name.toLowerCase().endsWith('.json'))throw Error('DanceFlow chart must be JSON under 128 KiB.');
+   const source=JSON.parse(await file.text()) as unknown;
+   const chart=importDanceFlow(source);
+   const show=createPerformance(chart,customWorlds.map(w=>w.pack));
+   setPerformance(show);setSelectedPhrase(0);setPerformanceEnabled(true);
+   setComposerMessage('Loaded '+chart.phrases.length+' authored phrases across '+show.worlds.length+' local worlds.');
+  }catch(e){setComposerMessage('Chart rejected: '+(e instanceof Error?e.message:'Invalid JSON'));}
+ }
+ async function importPerformance(event:React.ChangeEvent<HTMLInputElement>){
+  const file=event.currentTarget.files?.[0];event.currentTarget.value='';
+  if(!file||active||room)return;
+  try{
+   if(file.size>MAX_PERFORMANCE_BYTES||!file.name.toLowerCase().endsWith('.json'))throw Error('Performance must be JSON under 6.85 MB.');
+   const show=readPerformance(await file.text());
+   setPerformance(show);setSelectedPhrase(0);setPerformanceEnabled(true);
+   setComposerMessage('Opened local show '+show.title+' · '+show.chart.phrases.length+' phrases · '+show.worlds.length+' scenes.');
+  }catch(e){setComposerMessage('Show rejected: '+(e instanceof Error?e.message:'Invalid file'));}
+ }
+ function editShowCue(patch:Partial<WorldPerformanceCue>){
+  if(!performanceShow||active||room)return;
+  try{setPerformance(editPerformanceCue(performanceShow,selectedPhrase,patch));setComposerMessage('Phrase direction updated. Export show to keep your changes.');}
+  catch(e){setComposerMessage(e instanceof Error?e.message:'Invalid visual cue');}
+ }
+ function exportPerformance(){
+  if(!performanceShow)return;
+  try{
+   const url=URL.createObjectURL(new Blob([writePerformance(performanceShow)],{type:'application/json'}));
+   const a=document.createElement('a');a.href=url;a.download='pulse369-world-performance-v1.json';a.click();
+   window.setTimeout(()=>URL.revokeObjectURL(url),1000);
+   setComposerMessage('Show downloaded. Its worlds and cue map are portable; audio files and workout history are excluded.');
+  }catch(e){setComposerMessage(e instanceof Error?e.message:'Could not export show.');}
  }
  function removeCustomWorld(){
   if(!selectedWorldId||active||room)return;
@@ -175,7 +223,7 @@ export default function Studio(){
     <div className="studio-grid">
      <section className="stage" aria-label="Workout stage">
       <GameView onReady={onReady} onStatus={setStatus} onFinish={onFinish} onError={setError}/>
-      <div className="stage-top"><div><p className="eyebrow" style={{color:'#d7c0fb'}}>{!room&&selectedWorld?selectedWorld.title:WORLDS.find(w=>w.id===(config.world??'temple'))?.title}</p><h2 className="stage-title">{mode.title}</h2><p className="stage-caption">{active?status.cue:mode.cue}</p></div><div className="stat-float"><strong>{active?clock(Math.max(0,config.minutes*60-status.elapsed)):`${config.minutes}:00`}</strong><span>{active?`${status.score.toLocaleString()} pts · ${status.combo} combo`:'Your next session'}</span>{active&&status.stage&&<span className="phase-label">{status.stage}{status.phaseRemaining?' · '+clock(status.phaseRemaining):''}</span>}</div></div>
+      <div className="stage-top"><div><p className="eyebrow" style={{color:'#d7c0fb'}}>{!room&&performanceEnabled&&performanceShow&&config.mode==='rave'?performanceShow.title:!room&&selectedWorld?selectedWorld.title:WORLDS.find(w=>w.id===(config.world??'temple'))?.title}</p><h2 className="stage-title">{mode.title}</h2><p className="stage-caption">{active?status.cue:mode.cue}</p></div><div className="stat-float"><strong>{active?clock(Math.max(0,config.minutes*60-status.elapsed)):`${config.minutes}:00`}</strong><span>{active?`${status.score.toLocaleString()} pts · ${status.combo} combo`:'Your next session'}</span>{active&&status.stage&&<span className="phase-label">{status.stage}{status.phaseRemaining?' · '+clock(status.phaseRemaining):''}</span>}</div></div>
       {config.coach!=='none'&&<div className="coach-ticker"><Sparkles size={16}/><div><strong>{active?status.coachCue:COACHES.find(c=>c.id===config.coach)?.name+' is ready'}</strong><p>{active?status.coachDetail:'Your coach demonstrates the moves. Follow at your own pace.'}</p></div></div>}
       {!isActive(config.mode)&&status.phase==='playing'&&<div className="recover-guide">{movement&&<div className="movement-progress"><span>Movement {movement.step} / {movement.total} · {Math.ceil(movement.remaining)} sec</span><Progress className="progress" value={(30-movement.remaining)/30*100} aria-label="Current movement progress"/></div>}<h2>{status.cue}</h2><p>{status.detail}</p></div>}
       {isActive(config.mode)&&status.phase==='playing'&&!status.vr&&<div className="touch-controls">{['A','S','K','L'].map((key,i)=><button key={key} aria-label={`${i<2?'Left':'Right'} ${i%2===0?'high':'low'} target`} onPointerDown={e=>{e.preventDefault();engine.current?.hitLane(i);}}>{key}</button>)}</div>}
@@ -183,7 +231,7 @@ export default function Studio(){
      </section>
      <aside className="card config"><h2>Your session <Settings2 size={16} style={{float:'right',color:'var(--muted)'}}/></h2><Picker label="Soundtrack" value={config.track.id} options={allTracks.map(t=>({value:t.id,label:t.title}))} onChange={id=>changeConfig({track:allTracks.find(t=>t.id===id)!})} disabled={active||!!room}/><div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:12}}><Picker label="Duration" value={String(config.minutes)} options={DURATIONS.map(m=>({value:String(m),label:m+' minutes'}))} onChange={v=>changeConfig({minutes:Number(v)})} disabled={active||!!room}/><Picker label="Pace" value={config.difficulty} options={[{value:'easy',label:'Easy'},{value:'steady',label:'Steady'},{value:'intense',label:'Intense'}]} onChange={v=>changeConfig({difficulty:v as Config['difficulty']})} disabled={active||!!room||!isActive(config.mode)}/></div>{config.mode==='breathe'&&<Picker label="Breathing pattern" value={config.noHold?'gentle':'369'} options={[{value:'gentle',label:'Gentle · 3 in / 6 out'},{value:'369',label:'369 · 3 in / 6 hold / 9 out'}]} onChange={v=>changeConfig({noHold:v==='gentle'})} disabled={active||!!room}/>}
       {config.mode==='rave'&&<><Picker label="Dance style" value={config.raveStyle??'free'} options={RAVE_STYLES.map(s=>({value:s.id,label:s.title}))} onChange={v=>changeConfig({raveStyle:v as Config['raveStyle']})} disabled={active||!!room}/><p className="music-rule">{RAVE_STYLES.find(s=>s.id===(config.raveStyle??'free'))?.description}</p></>}
-      <Picker label="Environment" value={!room&&selectedWorld?'custom:'+selectedWorldId:config.world??'temple'} options={[...WORLDS.map(w=>({value:w.id,label:w.title})),...(!room?customWorlds.map(w=>({value:'custom:'+w.id,label:'Domistika · '+w.pack.title})):[])]} onChange={v=>{if(v.startsWith('custom:'))setSelectedWorldId(v.slice(7));else{setSelectedWorldId('');changeConfig({world:v as Config['world']});}}} disabled={active||!!room}/>
+      <Picker label="Environment" value={!room&&selectedWorld?'custom:'+selectedWorldId:config.world??'temple'} options={[...WORLDS.map(w=>({value:w.id,label:w.title})),...(!room?customWorlds.map(w=>({value:'custom:'+w.id,label:'Domistika · '+w.pack.title})):[])]} onChange={v=>{setPerformanceEnabled(false);if(v.startsWith('custom:'))setSelectedWorldId(v.slice(7));else{setSelectedWorldId('');changeConfig({world:v as Config['world']});}}} disabled={active||!!room}/>
       <div className="field" style={{marginTop:14,padding:12,border:'1px solid var(--border)',borderRadius:9}}>
        <label htmlFor="custom-world-file">World Forge · local world shelf ({customWorlds.length}/3)</label>
        <input id="custom-world-file" type="file" accept=".json,application/json" disabled={active||!!room||customWorlds.length>=3} onChange={e=>void importCustomWorld(e)} aria-describedby="worldforge-note" style={{maxWidth:'100%'}}/>
@@ -212,6 +260,40 @@ export default function Studio(){
          {WORLD_BANDS.map(b=><option key={b} value={b}>{b==='full'?'Full spectrum':b==='beat'?'Bass onset':'Frequency · '+b}</option>)}
         </select>
         <p className="music-rule">Editing response bands changes only local visual metadata. Save with Export WorldPack. No songs, sensor readings or recorded sound enter the file. During a workout the live signal comes from the same playing track, not a microphone.</p>
+       </div>}
+       {config.mode==='rave'&&<div style={{borderTop:'1px solid var(--border)',marginTop:14,paddingTop:14,display:'grid',gap:10}}>
+        <strong>Performance Composer · R4</strong>
+        <p className="music-rule">Map actual DanceFlow phrases to up to three authored worlds. Each transition stays behind the target corridor. Build and edit only between sessions.</p>
+        <label htmlFor="wf-chart-file">Import DanceFlow choreography or chart-based DanceFlow show</label>
+        <input id="wf-chart-file" type="file" accept=".json,application/json" disabled={active||!!room||customWorlds.length===0} onChange={e=>void importDanceChart(e)}/>
+        <label htmlFor="wf-performance-file">Open saved World Performance</label>
+        <input id="wf-performance-file" type="file" accept=".json,application/json" disabled={active||!!room} onChange={e=>void importPerformance(e)}/>
+        <p className="music-rule" role="status">{composerMessage}</p>
+        {!!performanceShow&&<>
+          <div className="setting-row"><label htmlFor="wf-show-enabled">Use authored performance in solo rave</label><input id="wf-show-enabled" type="checkbox" checked={performanceEnabled} disabled={active||!!room} onChange={e=>setPerformanceEnabled(e.target.checked)}/></div>
+          <label htmlFor="wf-phrase">DanceFlow phrase</label>
+          <select id="wf-phrase" value={Math.min(selectedPhrase,performanceShow.cues.length-1)} onChange={e=>setSelectedPhrase(Number(e.target.value))}>
+           {performanceShow.chart.phrases.map((p,i)=><option key={i} value={i}>{i+1}. {p.name} · {p.repeat*8} counts</option>)}
+          </select>
+          <label htmlFor="wf-stage">Scene</label>
+          <select id="wf-stage" value={activeCue?.worldIndex??0} disabled={active||!!room} onChange={e=>editShowCue({worldIndex:Number(e.target.value)})}>
+           {performanceShow.worlds.map((w,i)=><option key={i} value={i}>{i+1}. {w.title}</option>)}
+          </select>
+          <label htmlFor="wf-palette">Palette</label>
+          <select id="wf-palette" value={activeCue?.palette??'aurora'} disabled={active||!!room} onChange={e=>editShowCue({palette:e.target.value as WorldPerformanceCue['palette']})}>
+           {PALETTES.map(p=><option key={p} value={p}>{p}</option>)}
+          </select>
+          <label htmlFor="wf-glow">Glow · {Math.round((activeCue?.glow??0)*100)}%</label>
+          <input id="wf-glow" type="range" min="0" max="1" step=".1" disabled={active||!!room} value={activeCue?.glow??0} onChange={e=>editShowCue({glow:Number(e.target.value)})}/>
+          <label htmlFor="wf-motion">Motion · {Math.round((activeCue?.motion??0)*100)}%</label>
+          <input id="wf-motion" type="range" min="0" max="1" step=".1" disabled={active||!!room} value={activeCue?.motion??0} onChange={e=>editShowCue({motion:Number(e.target.value)})}/>
+          <label htmlFor="wf-transition">Crossfade at phrase change</label>
+          <select id="wf-transition" value={activeCue?.transitionCounts??0} disabled={active||!!room} onChange={e=>editShowCue({transitionCounts:Number(e.target.value) as WorldPerformanceCue['transitionCounts']})}>
+           {TRANSITIONS.map(n=><option key={n} value={n}>{n===0?'Cut':n+' counts'}</option>)}
+          </select>
+          <p className="music-rule">Authored chart: {performanceShow.chart.bpm} BPM · {performanceShow.chart.offsetMs} ms offset. Current track: {config.track.bpm} BPM. {config.track.bpm!==performanceShow.chart.bpm?'Adjust the chart BPM before exporting if you need accurate phrase alignment.':'Phrase timing matches the selected track BPM.'} This affects visuals only, never the target chart.</p>
+          <button type="button" className="btn small" onClick={exportPerformance}>Export World Performance</button>
+        </>}
        </div>}
        <p className="music-rule">Imported scenes decorate solo workouts only. Calm mode overrides all motion and flashes. Shared rooms never receive these visuals.</p>
       </div><Picker label="Your coach" value={config.coach??'nova'} options={[...COACHES.map(c=>({value:c.id,label:c.name+' · '+c.role})),{value:'none',label:'Solo · no coach'}]} onChange={v=>changeConfig({coach:v as Config['coach']})} disabled={active||!!room}/><Picker label="Session plan" value={config.program??'flow'} options={PROGRAMS.map(p=>({value:p.id,label:p.title}))} onChange={v=>changeConfig({program:v as Config['program']})} disabled={active||!!room||!isActive(config.mode)}/><p className="music-rule">{PROGRAMS.find(p=>p.id===config.program)?.description}</p><Picker label="Virtual partners" value={String(config.companions??2)} options={[{value:'0',label:'Just me and my coach'},{value:'1',label:'Echo · 1 partner'},{value:'2',label:'Echo & Sol · 2 partners'}]} onChange={v=>changeConfig({companions:Number(v)})} disabled={active||!!room}/><Toggle label="Seated movement" checked={config.seated} onChange={v=>changeConfig({seated:v})} disabled={active||!!room}/><Toggle label="Lower visual motion" checked={config.calm} onChange={v=>changeConfig({calm:v})} disabled={active||!!room}/><Toggle label="Spoken coach cues" checked={voice} onChange={setVoice}/><div className="volume"><Volume2 size={16}/><Slider value={[volume*100]} min={0} max={100} step={1} onValueChange={v=>setVolume(v[0]/100)} aria-label="Music volume"/></div>

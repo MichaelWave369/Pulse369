@@ -12,6 +12,8 @@ export class CustomWorkoutWorld {
   readonly root:THREE.Group;
   private readonly visual:ReturnType<typeof createWorldVisual>;
   readonly title:string;
+  private readonly materials:THREE.MeshStandardMaterial[]=[];
+  private readonly lights:{light:THREE.Light;intensity:number}[]=[];
 
   constructor(pack:WorldPack){
     this.visual=createWorldVisual(pack);
@@ -37,11 +39,24 @@ export class CustomWorkoutWorld {
       authored.position.add(new THREE.Vector3(...(layout.offset as [number,number,number])));
       authored.scale.setScalar(layout.scale);
       this.root.children.filter(child=>child instanceof THREE.GridHelper).forEach(child=>{child.visible=false;});
+      this.root.traverse(node=>{
+       if(node instanceof THREE.Mesh&&node.material instanceof THREE.MeshStandardMaterial)
+        this.materials.push(node.material);
+       if(node instanceof THREE.Light)this.lights.push({light:node,intensity:node.intensity});
+      });
       this.root.updateMatrixWorld(true);
     }catch(error){this.visual.dispose();throw error;}
   }
-  update(elapsedSeconds:number,bpm:number,reducedMotion:boolean,eightCount=false,beatOffset=0,audioFrame?:WorldAudioFrame|null,visualGain=1,renderTime?:number){
-    this.visual.update(Math.max(0,elapsedSeconds),bpm,reducedMotion,eightCount,beatOffset,audioFrame,visualGain,renderTime);
+  setMix(alpha:number){
+    const a=Math.max(0,Math.min(1,Number.isFinite(alpha)?alpha:0));
+    this.root.visible=a>.001;
+    for(const mat of this.materials){mat.transparent=a<.999;mat.opacity=a;mat.depthWrite=a>=.999;}
+    for(const {light,intensity} of this.lights)light.intensity=intensity*a;
+  }
+  update(elapsedSeconds:number,bpm:number,reducedMotion:boolean,eightCount=false,beatOffset=0,
+    audioFrame?:WorldAudioFrame|null,visualGain=1,renderTime?:number,
+    direction?:{palette:WorldPack['show']['cues'][number]['palette'];glow:number;motion:number}|null){
+    this.visual.update(Math.max(0,elapsedSeconds),bpm,reducedMotion,eightCount,beatOffset,audioFrame,visualGain,renderTime,direction);
   }
   dispose(){this.visual.dispose();}
 }

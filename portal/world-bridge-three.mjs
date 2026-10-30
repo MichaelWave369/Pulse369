@@ -70,10 +70,13 @@ export function createWorldVisual(pack) {
   const key=new THREE.DirectionalLight(0xc7e6ff,2);
   key.position.set(5,12,4);stage.add(key);
   let disposed=false,lastFrameSeconds=null;
-  function update(seconds,bpm=120,reducedMotion=false,eightCount=false,beatOffset=0,audioFrame=undefined,visualGain=1,renderTime=seconds) {
+  function update(seconds,bpm=120,reducedMotion=false,eightCount=false,beatOffset=0,audioFrame=undefined,visualGain=1,renderTime=seconds,direction=null) {
     if(!Number.isFinite(visualGain)||visualGain<0||visualGain>1.5)throw Error('Invalid visual gain');
     if(disposed)return;
     const cue=visualCueForSession(pack.show,seconds,bpm,beatOffset,eightCount);
+    const directedPalette=direction?.palette??cue.palette;
+    const directedGlow=direction?.glow??cue.gain;
+    const directedMotion=direction?.motion??1;
     const beatPhase=Math.max(0,seconds-beatOffset)*bpm/60*2*Math.PI;
     const signal=reducedMotion?0:Math.pow(.5+.5*Math.cos(beatPhase),3);
     const values=audioFrame===undefined
@@ -90,22 +93,22 @@ export function createWorldVisual(pack) {
       mesh.position.fromArray(o.position);
       mesh.rotation.fromArray(o.rotation);
       mesh.scale.fromArray(o.scale);
-      if(motion && motion.mode!=='none' && !reducedMotion) {
+      if(motion && motion.mode!=='none' && !reducedMotion && directedMotion>0) {
         const a=(seconds*motion.speed*2*Math.PI)%(2*Math.PI)+motion.phase;
         const sine=Math.sin(a)-Math.sin(motion.phase);
         const cosine=Math.cos(a)-Math.cos(motion.phase);
-        if(motion.mode==='spin')mesh.rotation.y+=seconds*motion.speed*2*Math.PI+energy*.45*sine;
-        if(motion.mode==='bob')mesh.position.y+=(motion.amplitude+energy*.35)*sine;
+        if(motion.mode==='spin')mesh.rotation.y+=(seconds*motion.speed*2*Math.PI+energy*.45*sine)*directedMotion;
+        if(motion.mode==='bob')mesh.position.y+=(motion.amplitude+energy*.35)*sine*directedMotion;
         if(motion.mode==='orbit') {
-          mesh.position.x+=(motion.amplitude+energy*.4)*cosine;
-          mesh.position.z+=(motion.amplitude+energy*.4)*sine;
+          mesh.position.x+=(motion.amplitude+energy*.4)*cosine*directedMotion;
+          mesh.position.z+=(motion.amplitude+energy*.4)*sine*directedMotion;
         }
-        if(motion.mode==='pulse')mesh.scale.multiplyScalar(Math.max(.3,1+(motion.amplitude*.35+energy*.35)*sine));
+        if(motion.mode==='pulse')mesh.scale.multiplyScalar(Math.max(.3,1+(motion.amplitude*.35+energy*.35)*sine*directedMotion));
       }
-      const targetGlow=reducedMotion?0:Math.min(.85,energy*cue.gain*.6);
+      const targetGlow=reducedMotion?0:Math.min(.65,energy*directedGlow*.45);
       // Smooth bright transitions; no sharp beat-triggered strobe.
       item.envelope+=(targetGlow-item.envelope)*smooth;
-      mesh.material.emissive.set(PALETTE[cue.palette][band]);
+      mesh.material.emissive.set(PALETTE[directedPalette][band]);
       mesh.material.emissiveIntensity=item.envelope;
     }
     return cue;
