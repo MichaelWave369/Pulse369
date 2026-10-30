@@ -10,4 +10,4 @@ export interface WorldVisual {
   dispose():void;
   count:number;
 }
-export function createWorldVisual(pack:WorldPack):WorldVisual;
+export function createWorldVisual(pack:WorldPack,options?:{quality?:'quest'|'desktop'}):WorldVisual;
