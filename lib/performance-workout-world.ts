@@ -6,6 +6,7 @@ import {CustomWorkoutWorld} from './custom-workout-world';
 import {normalizePerformance,samplePerformance,type WorldPerformance} from '../portal/world-performance.mjs';
 import {sceneTransitionPolicy,performanceBudgetReport,type RenderTier} from '../portal/world-render-budget.mjs';
 import type {WorldAudioFrame} from '../portal/world-audio-frame.mjs';
+import {GOVERNOR_LEVELS} from '../portal/world-adaptive-governor.mjs';
 
 export class PerformanceWorkoutWorld {
  readonly root=new THREE.Group();
@@ -14,6 +15,7 @@ export class PerformanceWorkoutWorld {
  private quality:RenderTier='desktop';
  private lastTransitionReason='initial';
  private lastPhraseIndex:number|null=null;
+ private adaptiveLevel:0|1|2=0;
  readonly title:string;
  constructor(source:WorldPerformance){
   this.show=normalizePerformance(source);
@@ -28,7 +30,11 @@ export class PerformanceWorkoutWorld {
   if(quality===this.quality)return;
   this.clearStages();this.quality=quality;
  }
- getFrameTelemetry(){return {activeStages:this.visibleStages.size,phraseIndex:this.lastPhraseIndex,reason:this.lastTransitionReason};}
+ setAdaptiveLevel(level:0|1|2){
+  if(!Number.isInteger(level)||level<0||level>2)throw Error('Invalid adaptive effect tier');
+  this.adaptiveLevel=level;
+ }
+ getFrameTelemetry(){return {activeStages:this.visibleStages.size,phraseIndex:this.lastPhraseIndex,reason:this.lastTransitionReason,adaptiveLevel:this.adaptiveLevel};}
  getRenderStatus(){
   return {tier:this.quality,activeStages:this.visibleStages.size,reason:this.lastTransitionReason,
    estimate:performanceBudgetReport(this.show,this.quality)};
@@ -42,9 +48,10 @@ export class PerformanceWorkoutWorld {
   const cue=samplePerformance(this.show,Math.max(0,seconds));
   this.lastPhraseIndex=cue.phraseIndex;
   const policy=sceneTransitionPolicy(this.show.worlds,cue.previousWorldIndex,cue.worldIndex,this.quality);
-  const transitioning=cue.blend<1&&cue.previousWorldIndex!==cue.worldIndex&&policy.crossfade;
+  const profile=GOVERNOR_LEVELS[this.adaptiveLevel];
+  const transitioning=cue.blend<1&&cue.previousWorldIndex!==cue.worldIndex&&policy.crossfade&&profile.allowCrossfade;
   this.lastTransitionReason=cue.blend<1&&cue.previousWorldIndex!==cue.worldIndex?
-    policy.reason:'single-stage';
+    (policy.crossfade&&!profile.allowCrossfade?'adaptive-effects-cut':policy.reason):'single-stage';
   const required=new Set(transitioning?[cue.previousWorldIndex,cue.worldIndex]:[cue.worldIndex]);
   // Cut first: no transient third or second scene can be allocated during a budget fallback.
   for(const [index,stage] of this.visibleStages){
@@ -59,13 +66,13 @@ export class PerformanceWorkoutWorld {
   }
   const current=this.visibleStages.get(cue.worldIndex);
   current?.setMix(transitioning?cue.blend:1);
-  current?.update(seconds,bpm,reducedMotion,false,0,audioFrame,visualGain,renderTime,
-   {palette:cue.palette,glow:cue.glow,motion:cue.motion});
+  current?.update(seconds,bpm,reducedMotion,false,0,audioFrame,visualGain*profile.gain,renderTime,
+   {palette:cue.palette,glow:cue.glow*profile.glow,motion:cue.motion*profile.motion});
   if(transitioning){
    const previous=this.visibleStages.get(cue.previousWorldIndex);
    previous?.setMix(1-cue.blend);
-   previous?.update(seconds,bpm,reducedMotion,false,0,audioFrame,visualGain,renderTime,
-    {palette:cue.previousPalette,glow:cue.previousGlow,motion:cue.previousMotion});
+   previous?.update(seconds,bpm,reducedMotion,false,0,audioFrame,visualGain*profile.gain,renderTime,
+    {palette:cue.previousPalette,glow:cue.previousGlow*profile.glow,motion:cue.previousMotion*profile.motion});
   }
  }
  dispose(){
