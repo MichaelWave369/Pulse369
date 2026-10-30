@@ -132,7 +132,7 @@ export class PulseGame {
  }
  async start(c:Config,groupAnchor:number|null=null){
   if(this.status.phase==='playing'||this.status.phase==='loading')return;
-  this.directorClock.setEnabled(false);
+  this.directorClock?.setEnabled(false);
   const generation=++this.startGeneration;this.audio.stop();this.config=c;this.groupAnchor=groupAnchor;this.status={phase:'loading',elapsed:0,score:0,hits:0,total:0,combo:0,maxCombo:0,cue:'Loading your music',detail:'',vr:this.renderer.xr.isPresenting};this.publish();
   try{await this.audio.unlock();await this.audio.prepare(c.track);if(this.destroyed||generation!==this.startGeneration)return;
    this.applyScene(c);this.heart.reset();this.recentResults=[];this.notes.forEach(n=>n.mesh&&this.scene.remove(n.mesh));this.clockStart=groupAnchor??performance.now();this.status.elapsed=this.elapsed();this.notes=makeChart(c).map(n=>({...n,done:n.time<Math.max(0,this.status.elapsed)}));this.noteCursor=0;this.sessionId=crypto.randomUUID();this.usedVR=this.renderer.xr.isPresenting;this.pauseElapsed=0;this.countedSeconds=0;this.segmentStart=performance.now();this.status.phase='playing';this.spoken='';this.lastSpeech=-Infinity;this.orb.visible=!isActive(c.mode);
