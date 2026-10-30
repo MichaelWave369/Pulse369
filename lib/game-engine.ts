@@ -4,6 +4,8 @@ import { clock, danceCue, DEFAULT_CONFIG, isActive, isStriking, makeChart, mindf
 import { WorkoutWorld } from './worlds';
 import { CustomWorkoutWorld } from './custom-workout-world';
 import { PerformanceWorkoutWorld } from './performance-workout-world';
+import { ShowcaseWorld } from './showcase-world';
+import type {ShowcasePosition} from '../portal/world-showcase.mjs';
 import type { WorldPerformance } from '../portal/world-performance.mjs';
 import type { WorldPack } from '../portal/world-bridge.mjs';
 import {createDirectorClock} from '../portal/world-experience-director.mjs';
@@ -21,6 +23,7 @@ export class PulseGame {
  private recentResults:boolean[]=[];private notes:Note[]=[];private noteCursor=0;private clockStart=0;private pauseElapsed=0;private countedSeconds=0;private segmentStart=0;private lastFrame=0;private lastPublish=0;private lastHud='';private sessionId='';private usedVR=false;private startGeneration=0;
  private readonly acceptanceRecorder=createAcceptanceRecorder();
  private readonly directorClock=createDirectorClock();
+ private showcaseWorld?:ShowcaseWorld;private readonly galleryKeys=new Set<string>();
  private readonly visualGovernor=createVisualGovernor();private adaptiveVisualsEnabled=false;
  private world?:WorkoutWorld;private customWorld?:CustomWorkoutWorld;private performanceWorld?:PerformanceWorkoutWorld;private worldAudioMode:'live'|'tempo'|'still'='live';private worldVisualGain=1;private agents?:WorkoutCompanions;private heart=new HeartAccumulator();private heartRate:number|null=null;private lastSpeech=0;
  private orb:THREE.Mesh;private guides:THREE.Group[]=[];private guideTrails:THREE.Line[]=[];private guideSamples:THREE.Vector3[][]=[];private guideSampleAt=0;private targetGeo=new THREE.TorusGeometry(.17,.027,8,24);private coreGeo=new THREE.SphereGeometry(.082,12,8);private barGeo=new THREE.BoxGeometry(.19,.04,.025);private shieldGeo=new THREE.CircleGeometry(.16,6);
@@ -41,9 +44,9 @@ export class PulseGame {
   this.hudCanvas=document.createElement('canvas');this.hudCanvas.width=1024;this.hudCanvas.height=256;this.hudTexture=new THREE.CanvasTexture(this.hudCanvas);this.hud=new THREE.Mesh(new THREE.PlaneGeometry(1.5,.375),new THREE.MeshBasicMaterial({map:this.hudTexture,transparent:true,depthTest:false}));this.hud.position.set(0,2.05,-1.7);this.hud.visible=false;this.scene.add(this.hud);
   this.pauseButton=this.labelPlane('PAUSE',.36,.12);this.pauseButton.position.set(-.24,1.76,-1.7);this.finishButton=this.labelPlane('FINISH',.36,.12);this.finishButton.position.set(.24,1.76,-1.7);this.scene.add(this.pauseButton,this.finishButton);this.pauseButton.visible=this.finishButton.visible=false;
   for(let i=0;i<2;i++){const controller=this.renderer.xr.getController(i),grip=this.renderer.xr.getControllerGrip(i);this.controllers.push(controller);this.grips.push(grip);controller.addEventListener('connected',(event)=>{this.sources[i]=event.data;const hand=new THREE.Mesh(this.handGeo,this.materials[event.data.handedness==='left'?0:1]);grip.add(hand);});controller.addEventListener('disconnected',()=>{this.sources[i]=undefined;grip.clear();});controller.addEventListener('selectstart',()=>this.select(controller));this.scene.add(controller,grip);const ray=new THREE.Line(new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(0,0,0),new THREE.Vector3(0,0,-2)]),new THREE.LineBasicMaterial({color:0xd1fc74,transparent:true,opacity:.4}));controller.add(ray);}
-  this.renderer.xr.addEventListener('sessionstart',()=>{this.status.vr=true;this.usedVR=true;this.hud.visible=this.pauseButton.visible=this.finishButton.visible=true;this.setPauseLabel();this.publish();});
+  this.renderer.xr.addEventListener('sessionstart',()=>{this.status.vr=true;this.usedVR=true;this.hud.visible=this.pauseButton.visible=this.finishButton.visible=!this.showcaseWorld;this.setPauseLabel();this.publish();});
   this.renderer.xr.addEventListener('sessionend',()=>{this.acceptanceRecorder.stop();this.visualGovernor.setImmersive(false);this.performanceWorld?.setAdaptiveLevel(0);if(this.status.phase==='playing')this.pause();this.status.vr=false;this.hud.visible=this.pauseButton.visible=this.finishButton.visible=false;this.camera.position.set(0,1.65,3.4);this.camera.lookAt(0,1.45,-5);this.publish();});
-  this.resizeObserver=new ResizeObserver(()=>this.resize());this.resizeObserver.observe(container);this.resize();window.addEventListener('keydown',this.key);document.addEventListener('visibilitychange',this.visibility);this.renderer.setAnimationLoop(t=>this.frame(t));
+  this.resizeObserver=new ResizeObserver(()=>this.resize());this.resizeObserver.observe(container);this.resize();window.addEventListener('keydown',this.key);window.addEventListener('keyup',this.keyUp);window.addEventListener('blur',this.clearGalleryKeys);document.addEventListener('visibilitychange',this.visibility);this.renderer.setAnimationLoop(t=>this.frame(t));
  }
  private labelPlane(text:string,w:number,h:number){const c=document.createElement('canvas');c.width=512;c.height=128;const x=c.getContext('2d')!;x.fillStyle='#202132';x.fillRect(0,0,512,128);x.strokeStyle='#d1fc74';x.lineWidth=5;x.strokeRect(3,3,506,122);x.fillStyle='#d1fc74';x.font='bold 45px Arial';x.textAlign='center';x.fillText(text,256,80);return new THREE.Mesh(new THREE.PlaneGeometry(w,h),new THREE.MeshBasicMaterial({map:new THREE.CanvasTexture(c),depthTest:false}));}
  private setPauseLabel(){const s=this.status.phase;const primary=s==='paused'?'RESUME':s==='finished'?(this.groupAnchor===null?'REPLAY':'DONE'):s==='playing'?'PAUSE':'WAIT';const secondary=['finished','idle','loading'].includes(s)?'EXIT VR':'FINISH';for(const [button,text] of [[this.pauseButton,primary],[this.finishButton,secondary]] as const){const old=(button.material as THREE.MeshBasicMaterial).map;const temp=this.labelPlane(text,.36,.12);(button.material as THREE.MeshBasicMaterial).map=(temp.material as THREE.MeshBasicMaterial).map;old?.dispose();temp.geometry.dispose();(temp.material as THREE.Material).dispose();}}
@@ -52,6 +55,7 @@ export class PulseGame {
  /** Selects a local display-only world while inactive. No changes to Config, note chart or server rooms. */
  setCustomWorld(pack:WorldPack|null){
   if(['playing','paused','loading'].includes(this.status.phase))return;
+  if(this.showcaseWorld)this.setShowcaseEnabled(null);
   const next=pack?new CustomWorkoutWorld(pack):undefined;
   if(next)this.scene.add(next.root);
   const previous=this.customWorld;
@@ -64,6 +68,7 @@ export class PulseGame {
  /** Solo, client-owned DanceFlow visual show. Never serializes to a room or workout. */
  setWorldPerformance(show:WorldPerformance|null){
   if(['playing','paused','loading'].includes(this.status.phase))return;
+  if(this.showcaseWorld)this.setShowcaseEnabled(null);
   this.directorClock.setEnabled(false);
   const next=show?new PerformanceWorkoutWorld(show):undefined;
   if(next)this.scene.add(next.root);
@@ -73,19 +78,65 @@ export class PulseGame {
   previous?.dispose();
   this.audio.setAnalysisEnabled(!!(next||this.customWorld)&&this.worldAudioMode==='live');
  }
+ /** R11: one-room-at-a-time, no-workout immersive gallery.
+  * Source show is reused only for art; sessions, targets, audio and scoring are untouched.
+  */
+ setShowcaseEnabled(show:WorldPerformance|null){
+  if(['playing','paused','loading'].includes(this.status.phase)||this.renderer.xr.isPresenting)
+   throw Error('Exit the workout or immersive session before changing gallery mode');
+  this.directorClock.setEnabled(false);
+  const next=show?new ShowcaseWorld(show):undefined;
+  if(next)this.scene.add(next.root);
+  const previous=this.showcaseWorld;this.showcaseWorld=next;
+  previous?.dispose();this.galleryKeys.clear();
+  if(this.world)this.world.root.visible=!next&&!this.customWorld&&!this.performanceWorld;
+  if(this.customWorld)this.customWorld.root.visible=!next&&!this.performanceWorld;
+  if(this.performanceWorld)this.performanceWorld.root.visible=!next;
+  if(next){this.orb.visible=false;this.guides.forEach(g=>g.visible=false);this.guideTrails.forEach(t=>t.visible=false);}
+  else {this.camera.position.set(0,1.65,3.4);this.camera.lookAt(0,1.45,-5);}
+  return this.getShowcaseStatus();
+ }
+ getShowcaseStatus(){return this.showcaseWorld?.getStatus()??null;}
+ selectShowcaseRoom(index:number){
+  if(!this.showcaseWorld)throw Error('Enable the art gallery first');
+  return this.showcaseWorld.setRoom(index);
+ }
+ stepShowcaseRoom(direction:1|-1){
+  if(!this.showcaseWorld)throw Error('Enable the art gallery first');
+  return this.showcaseWorld.nextRoom(direction);
+ }
+ setShowcaseMotion(enabled:boolean){
+  if(!this.showcaseWorld)throw Error('Enable the art gallery first');
+  this.showcaseWorld.setMotion(enabled);return this.getShowcaseStatus();
+ }
+ async enterShowcaseVR(){
+  if(!this.showcaseWorld||!['idle','finished'].includes(this.status.phase))
+   throw Error('Open a local exhibition before entering gallery VR');
+  if(this.renderer.xr.isPresenting)throw Error('Already in immersive VR');
+  if(!navigator.xr)throw Error('This browser does not support immersive WebXR');
+  // requestSession runs directly in the user's click gesture. No workout is started.
+  const session=await navigator.xr.requestSession('immersive-vr',{
+   requiredFeatures:['local-floor'],optionalFeatures:['bounded-floor']});
+  try{await this.renderer.xr.setSession(session);}
+  catch(error){await session.end();throw error;}
+ }
+ async exitShowcaseVR(){
+  if(!this.showcaseWorld)throw Error('Not in the gallery');
+  const session=this.renderer.xr.getSession();if(session)await session.end();
+ }
  /** R10 author-controlled silent rehearsal. The renderer sees this visual-only clock;
   * note chart, workout timer, Web Audio and saved sessions never read it.
   */
  setDirectorRehearsalEnabled(enabled:boolean){
   if(typeof enabled!=='boolean')throw Error('Invalid rehearsal setting');
   if(!enabled){this.directorClock.setEnabled(false);return;}
-  if(!this.performanceWorld||!['idle','finished'].includes(this.status.phase)||this.renderer.xr.isPresenting)
+  if(!this.performanceWorld||this.showcaseWorld||!['idle','finished'].includes(this.status.phase)||this.renderer.xr.isPresenting)
    throw Error('Choose an authored show and finish your workout before rehearsing');
   const length=this.performanceWorld.getDirectorDuration();
   this.directorClock.setEnabled(true,length);
  }
  seekDirectorRehearsal(seconds:number){
-  if(!['idle','finished'].includes(this.status.phase)||this.renderer.xr.isPresenting)
+  if(this.showcaseWorld||!['idle','finished'].includes(this.status.phase)||this.renderer.xr.isPresenting)
    throw Error('Rehearsal seeking is unavailable during a session');
   return this.directorClock.seek(seconds);
  }
@@ -122,9 +173,14 @@ export class PulseGame {
  preview(c:Config){if(['playing','paused','loading'].includes(this.status.phase))return;this.config=c;this.applyScene(c);this.orb.visible=!isActive(c.mode);this.notes.forEach(n=>n.mesh&&this.scene.remove(n.mesh));this.notes=[];}
  setVoice(enabled:boolean){this.voice=enabled;if(!enabled)window.speechSynthesis?.cancel();}
  setHeartRate(bpm:number|null){this.heartRate=bpm;this.status.heartRate=bpm;if(bpm!==null&&this.status.phase==='playing'&&this.elapsed()>=0)this.heart.add(bpm);}
- private key=(e:KeyboardEvent)=>{if((e.target as HTMLElement)?.closest('input,textarea,[role=combobox],[contenteditable]'))return;if(e.repeat)return;const lanes=['a','s','k','l'];const lane=lanes.indexOf(e.key.toLowerCase());if(lane>=0){e.preventDefault();this.hitLane(lane);}if(e.key==='Escape'||e.code==='Space'){if(this.status.phase==='playing'){e.preventDefault();this.pause();}else if(this.status.phase==='paused'){e.preventDefault();void this.resume().catch(e=>this.onError(e.message));}}};
+ private keyUp=(e:KeyboardEvent)=>{this.galleryKeys.delete(e.key.toLowerCase());};
+ private clearGalleryKeys=()=>{this.galleryKeys.clear();};
+ private key=(e:KeyboardEvent)=>{if((e.target as HTMLElement)?.closest('input,textarea,select,button,[role=combobox],[contenteditable]'))return;
+  if(this.showcaseWorld){const key=e.key.toLowerCase();if(['w','a','s','d','arrowleft','arrowright'].includes(key)){e.preventDefault();this.galleryKeys.add(key);}if(key==='escape'){e.preventDefault();if(this.renderer.xr.isPresenting)void this.exitShowcaseVR();else this.setShowcaseEnabled(null);}return;}
+  if(e.repeat)return;const lanes=['a','s','k','l'];const lane=lanes.indexOf(e.key.toLowerCase());if(lane>=0){e.preventDefault();this.hitLane(lane);}if(e.key==='Escape'||e.code==='Space'){if(this.status.phase==='playing'){e.preventDefault();this.pause();}else if(this.status.phase==='paused'){e.preventDefault();void this.resume().catch(e=>this.onError(e.message));}}};
  private visibility=()=>{if(document.hidden&&this.status.phase==='playing'&&!this.status.vr)this.pause();};
  async enterVR(c:Config,startSession=true){
+  if(this.showcaseWorld)throw Error('Exit the gallery before starting the workout VR session');
   if(!navigator.xr)throw new Error('Open this studio in a browser with VR support on your headset.');
   void this.audio.unlock();
   const sessionPromise=navigator.xr.requestSession('immersive-vr',{requiredFeatures:['local-floor'],optionalFeatures:['bounded-floor']});
@@ -133,6 +189,10 @@ export class PulseGame {
  async start(c:Config,groupAnchor:number|null=null){
   if(this.status.phase==='playing'||this.status.phase==='loading')return;
   this.directorClock?.setEnabled(false);
+  if(this.showcaseWorld){
+   if(this.renderer.xr.isPresenting)throw Error('Exit the immersive art gallery before starting a workout');
+   this.setShowcaseEnabled(null);
+  }
   const generation=++this.startGeneration;this.audio.stop();this.config=c;this.groupAnchor=groupAnchor;this.status={phase:'loading',elapsed:0,score:0,hits:0,total:0,combo:0,maxCombo:0,cue:'Loading your music',detail:'',vr:this.renderer.xr.isPresenting};this.publish();
   try{await this.audio.unlock();await this.audio.prepare(c.track);if(this.destroyed||generation!==this.startGeneration)return;
    this.applyScene(c);this.heart.reset();this.recentResults=[];this.notes.forEach(n=>n.mesh&&this.scene.remove(n.mesh));this.clockStart=groupAnchor??performance.now();this.status.elapsed=this.elapsed();this.notes=makeChart(c).map(n=>({...n,done:n.time<Math.max(0,this.status.elapsed)}));this.noteCursor=0;this.sessionId=crypto.randomUUID();this.usedVR=this.renderer.xr.isPresenting;this.pauseElapsed=0;this.countedSeconds=0;this.segmentStart=performance.now();this.status.phase='playing';this.spoken='';this.lastSpeech=-Infinity;this.orb.visible=!isActive(c.mode);
@@ -154,10 +214,40 @@ export class PulseGame {
  hitLane(lane:number){if(this.status.phase!=='playing'||this.status.vr||!isActive(this.config.mode))return;const elapsed=this.elapsed();const note=this.notes.find(n=>!n.done&&n.lane===lane&&Math.abs(n.time-elapsed)<.23);if(note)this.collect(note);}
  private recordTarget(hit:boolean){this.recentResults=[...(this.recentResults??[]),hit].slice(-12);this.status.recentTotal=this.recentResults.length;this.status.recentHits=this.recentResults.filter(Boolean).length;}
  private collect(n:Note){n.done=true;if(n.mesh){this.scene.remove(n.mesh);n.mesh=undefined;}this.status.hits++;this.status.total++;this.recordTarget(true);this.status.combo++;this.status.maxCombo=Math.max(this.status.maxCombo,this.status.combo);this.status.score+=100+Math.min(50,this.status.combo*2);const mesh=new THREE.Mesh(new THREE.TorusGeometry(.2,.015,6,24),this.materials[n.lane<2?0:1]);mesh.position.set(n.x,n.y,-.55);this.scene.add(mesh);this.effectFlashes.push({mesh,life:.3});this.publish();}
- private select(c:THREE.XRTargetRaySpace){this.raycaster.ray.origin.setFromMatrixPosition(c.matrixWorld);this.raycaster.ray.direction.set(0,0,-1).applyQuaternion(c.getWorldQuaternion(new THREE.Quaternion()));const hit=this.raycaster.intersectObjects([this.pauseButton,this.finishButton].filter(o=>o.visible))[0];if(!hit)return;if(hit.object===this.finishButton){if(['finished','idle','loading'].includes(this.status.phase)){this.cancelLoad();void this.renderer.xr.getSession()?.end();}else this.finish();}else if(this.status.phase==='playing')this.pause();else if(this.status.phase==='finished'&&this.groupAnchor===null)void this.start(this.config).catch(e=>this.onError(e.message));else if(this.status.phase==='paused')void this.resume().catch(e=>this.onError(e.message));}
+ private select(c:THREE.XRTargetRaySpace){if(this.showcaseWorld){const slot=this.controllers.indexOf(c);const handed=slot>=0?this.sources[slot]?.handedness:undefined;this.showcaseWorld.nextRoom(handed==='left'||(!handed&&slot===0)?-1:1);return;}this.raycaster.ray.origin.setFromMatrixPosition(c.matrixWorld);this.raycaster.ray.direction.set(0,0,-1).applyQuaternion(c.getWorldQuaternion(new THREE.Quaternion()));const hit=this.raycaster.intersectObjects([this.pauseButton,this.finishButton].filter(o=>o.visible))[0];if(!hit)return;if(hit.object===this.finishButton){if(['finished','idle','loading'].includes(this.status.phase)){this.cancelLoad();void this.renderer.xr.getSession()?.end();}else this.finish();}else if(this.status.phase==='playing')this.pause();else if(this.status.phase==='finished'&&this.groupAnchor===null)void this.start(this.config).catch(e=>this.onError(e.message));else if(this.status.phase==='paused')void this.resume().catch(e=>this.onError(e.message));}
  private spawn(n:Note){const g=new THREE.Group(),material=this.materials[n.lane<2?0:1];if(n.gesture==='guard'){const shield=new THREE.Mesh(this.shieldGeo,material);shield.scale.y=1.2;g.add(shield,new THREE.Mesh(this.barGeo,this.guardMark));}else{g.add(new THREE.Mesh(this.targetGeo,material));g.add(new THREE.Mesh(this.coreGeo,material));if(isStriking(this.config.mode))g.add(new THREE.Mesh(this.barGeo,material));}g.position.set(n.x,n.y,-8);this.scene.add(g);n.mesh=g;}
  private frame(time:number){
   if(this.destroyed)return;const dt=Math.min(.05,Math.max(0,(time-this.lastFrame)/1000));this.lastFrame=time;
+  if(this.showcaseWorld){
+   // Gallery has no notes, score, workout clock, audio or gameplay agents.
+   const xr=!!this.renderer.xr.isPresenting;
+   this.showcaseWorld.setQuality(xr?'quest':'desktop');
+   if(xr){
+    const left=this.sources.find(x=>x?.handedness==='left')?.gamepad;
+    if(left&&left.axes.length>=2){
+     const axisX=left.axes[left.axes.length-2]??0;
+     const axisY=left.axes[left.axes.length-1]??0;
+     if(Math.abs(axisX)>.25||Math.abs(axisY)>.25){
+      const direction=this.renderer.xr.getCamera().getWorldDirection(new THREE.Vector3());
+      const heading=Math.atan2(-direction.x,-direction.z);
+      this.showcaseWorld.move(Math.abs(axisY)>.25?-axisY:0,Math.abs(axisX)>.25?axisX:0,dt,heading);
+     }
+    }
+   }else{
+    const keys=this.galleryKeys,walk=(keys.has('w')?1:0)-(keys.has('s')?1:0);
+    const strafe=(keys.has('d')?1:0)-(keys.has('a')?1:0);
+    const turn=(keys.has('arrowleft')?1:0)-(keys.has('arrowright')?1:0);
+    if(turn)this.showcaseWorld.turn(turn*dt*.85);
+    const before=this.showcaseWorld.getPosition();
+    if(walk||strafe)this.showcaseWorld.move(walk,strafe,dt,before.yaw);
+    const at=this.showcaseWorld.getPosition();
+    this.camera.position.set(at.x,1.65,at.z);
+    this.camera.lookAt(at.x-Math.sin(at.yaw),1.65,at.z-Math.cos(at.yaw));
+   }
+   this.showcaseWorld.update(time/1000,120,time/1000,this.config.calm,xr);
+   this.renderer.render(this.scene,this.camera);
+   return;
+  }
   const active=this.status.phase==='playing',elapsed=active?this.elapsed():this.status.elapsed;
   const visualTime=time/1000;
   const rehearsalEligible=!active&&['idle','finished'].includes(this.status.phase)&&
@@ -227,5 +317,5 @@ export class PulseGame {
  updatePeers(members:Member[],selfId:string){const others=members.filter(m=>m.user_id!==selfId);const keep=new Set(others.map(m=>m.user_id));for(const [id,p]of this.peers){if(!keep.has(id)){this.scene.remove(p.group);p.group.traverse(o=>{if(o instanceof THREE.Mesh){o.geometry.dispose();(o.material as THREE.Material).dispose();}});this.peers.delete(id);}}
   others.forEach((m,i)=>{let p=this.peers.get(m.user_id);if(!p){const group=new THREE.Group(),material=new THREE.MeshBasicMaterial({color:m.color,transparent:true,opacity:.55});const head=new THREE.Mesh(new THREE.SphereGeometry(.12,12,8),material),left=new THREE.Mesh(new THREE.SphereGeometry(.075,8,6),material),right=new THREE.Mesh(new THREE.SphereGeometry(.075,8,6),material);const body=new THREE.Mesh(new THREE.CapsuleGeometry(.13,.45,4,8),material);body.position.y=1.1;group.add(head,left,right,body);this.scene.add(group);p={group,head,left,right,target:[]};this.peers.set(m.user_id,p);}p.group.position.set(i%2===0?-2-i*.3:2+i*.3,0,-2.3-Math.floor(i/2)*.4);p.target=m.pose.length===9?m.pose:[0,1.6,0,-.4,1.1,-.4,.4,1.1,-.4];});
  }
- dispose(){this.directorClock.setEnabled(false);this.acceptanceRecorder.stop();this.visualGovernor.setImmersive(false);this.destroyed=true;this.startGeneration++;this.renderer.setAnimationLoop(null);this.resizeObserver.disconnect();window.removeEventListener('keydown',this.key);document.removeEventListener('visibilitychange',this.visibility);void this.renderer.xr.getSession()?.end();this.audio.setAnalysisEnabled(false);this.audio.dispose();this.performanceWorld?.dispose();this.customWorld?.dispose();this.world?.dispose();this.agents?.dispose();window.speechSynthesis?.cancel();const geometries=new Set<THREE.BufferGeometry>(),materials=new Set<THREE.Material>(),textures=new Set<THREE.Texture>();this.scene.traverse(o=>{if(o instanceof THREE.Mesh||o instanceof THREE.Line||o instanceof THREE.Points){geometries.add(o.geometry);for(const m of Array.isArray(o.material)?o.material:[o.material]){materials.add(m);const map=(m as THREE.MeshBasicMaterial).map;if(map)textures.add(map);}}});geometries.add(this.targetGeo);geometries.add(this.coreGeo);geometries.add(this.handGeo);geometries.add(this.barGeo);geometries.add(this.shieldGeo);geometries.forEach(g=>g.dispose());materials.add(this.guardMark);this.materials.forEach(m=>materials.add(m));materials.forEach(m=>m.dispose());textures.forEach(t=>t.dispose());this.renderer.dispose();this.renderer.domElement.remove();}
+ dispose(){this.showcaseWorld?.dispose();this.galleryKeys.clear();this.directorClock.setEnabled(false);this.acceptanceRecorder.stop();this.visualGovernor.setImmersive(false);this.destroyed=true;this.startGeneration++;this.renderer.setAnimationLoop(null);this.resizeObserver.disconnect();window.removeEventListener('keydown',this.key);window.removeEventListener('keyup',this.keyUp);window.removeEventListener('blur',this.clearGalleryKeys);document.removeEventListener('visibilitychange',this.visibility);void this.renderer.xr.getSession()?.end();this.audio.setAnalysisEnabled(false);this.audio.dispose();this.performanceWorld?.dispose();this.customWorld?.dispose();this.world?.dispose();this.agents?.dispose();window.speechSynthesis?.cancel();const geometries=new Set<THREE.BufferGeometry>(),materials=new Set<THREE.Material>(),textures=new Set<THREE.Texture>();this.scene.traverse(o=>{if(o instanceof THREE.Mesh||o instanceof THREE.Line||o instanceof THREE.Points){geometries.add(o.geometry);for(const m of Array.isArray(o.material)?o.material:[o.material]){materials.add(m);const map=(m as THREE.MeshBasicMaterial).map;if(map)textures.add(map);}}});geometries.add(this.targetGeo);geometries.add(this.coreGeo);geometries.add(this.handGeo);geometries.add(this.barGeo);geometries.add(this.shieldGeo);geometries.forEach(g=>g.dispose());materials.add(this.guardMark);this.materials.forEach(m=>materials.add(m));materials.forEach(m=>m.dispose());textures.forEach(t=>t.dispose());this.renderer.dispose();this.renderer.domElement.remove();}
 }
