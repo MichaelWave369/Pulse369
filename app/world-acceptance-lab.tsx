@@ -78,3 +78,4 @@ export default function WorldAcceptanceLab({engine,showReady,roomActive}:{
   </label>)}
   <p className="music-rule">Desktop rehearsal cannot create XR frame evidence. To compare desktop-to-Quest, download the R6 bundle on desktop, transfer the JSON to the headset, import it in Quest Browser, then start this capture before entering VR. Mark each item only after personally checking it. No automatic “passed” designation is issued.</p>
  </section>;
+}
