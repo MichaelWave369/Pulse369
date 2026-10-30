@@ -51,6 +51,7 @@ export function performanceBudgetReport(show,tier='quest'){
    const preceding=show.cues[(i+show.cues.length-1)%show.cues.length];
    return sceneTransitionPolicy(show.worlds,preceding.worldIndex,cue.worldIndex,tier);
  });
- return {tier,worlds,transitions,cuts:transitions.filter(x=>x.reason==='crossfade-over-budget'||x.reason==='single-scene-heavy').length,
+ return {tier,worlds,transitions,cuts:transitions.filter((x,i)=>show.cues[i].transitionCounts>0&&
+     (x.reason==='crossfade-over-budget'||x.reason==='single-scene-heavy')).length,
    heavyWorlds:worlds.filter(x=>x.triangles>RENDER_BUDGETS[tier].maxSingleTriangles).length};
 }
