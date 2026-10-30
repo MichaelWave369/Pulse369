@@ -36,6 +36,33 @@ try{
   &&!JSON.stringify(receipt).includes('score')
   &&!JSON.stringify(receipt).includes('userAgent'),
   'R7 receipt is self-attested and never exposes workout score, device ID or user agent');
+ const {readAcceptanceReceipt,compareAcceptanceReceipts,writeAcceptanceComparison}=await import(
+  pathToFileURL(path.resolve('portal/world-acceptance-compare.mjs')).href);
+ const makeEvidence=(hz)=>{
+  const recorder=createAcceptanceRecorder();recorder.start();
+  const count=hz*36;
+  for(let i=0;i<count;i++)recorder.capture({timeMs:i*1000/hz,xrPresenting:true,
+   calls:6,triangles:5000,activeStages:1,phraseIndex:i<count/2?0:1,reason:'single-stage'});
+  recorder.stop();return recorder.receipt(localChecklist);
+ };
+ const baselineEvidence=makeEvidence(72),candidateEvidence=makeEvidence(60);
+ check(readAcceptanceReceipt(JSON.stringify(baselineEvidence)).measurements.callbackFrames===2592,
+  'R8 validates a native-format R7 receipt without server calls or device identity');
+ const noParity=compareAcceptanceReceipts(baselineEvidence,candidateEvidence);
+ check(!noParity.comparable&&noParity.interpretation==='NOT_COMPARABLE',
+  'R8 refuses meaningful comparison until equivalent testing conditions are user-declared');
+ const difference=compareAcceptanceReceipts(baselineEvidence,candidateEvidence,true);
+ check(difference.comparable&&difference.interpretation==='POSSIBLE_REGRESSION_REVIEW'
+   &&difference.fields[0].delta>2,
+   'R8 detects a candidate callback slow-down using a 2-ms / 10% caution threshold');
+ check(!writeAcceptanceComparison(difference).includes('userAgent')&&
+   !writeAcceptanceComparison(difference).includes('account')&&
+   !writeAcceptanceComparison(difference).includes('controllerPose'),
+   'R8 comparison export contains only aggregated anonymous render measurements');
+ let rejectedPrivate=false;
+ try{readAcceptanceReceipt(JSON.stringify({...baselineEvidence,deviceIdentity:'not allowed'}));}
+ catch{rejectedPrivate=true;}
+ check(rejectedPrivate,'R8 rejects extra data fields in imported evidence');
  const fakeAcceptance=Object.create(PulseGame.prototype);
  Object.assign(fakeAcceptance,{performanceWorld:{},acceptanceRecorder:createAcceptanceRecorder()});
  fakeAcceptance.startAcceptanceCapture();
