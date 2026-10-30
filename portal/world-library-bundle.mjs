@@ -45,9 +45,10 @@ export function previewManifest(show){
 }
 export async function createBundle(raw,options={creator:'',description:'',license:'personal',tags:[]}){
  const show=normalizePerformance(raw),meta=metadata(options);
- const payload=writePerformance(show),digest=await sha256(payload);
+ const preview=previewManifest(show);
+ const digest=await sha256(JSON.stringify({metadata:meta,preview,performance:show}));
  const bundle={schema:BUNDLE_SCHEMA,version:1,sha256:digest,metadata:meta,
-  preview:previewManifest(show),performance:show};
+  preview,performance:show};
  if(encoded(JSON.stringify(bundle)).length>MAX_BUNDLE_BYTES)throw Error('Bundle exceeds 7.3 MB');
  return bundle;
 }
@@ -60,10 +61,10 @@ export async function readBundle(json){
   throw Error('Unsupported or invalid World Library bundle');
  const meta=metadata(value.metadata);
  const serialized=writePerformance(readPerformance(JSON.stringify(value.performance)));
- const digest=await sha256(serialized);
- if(digest!==value.sha256)throw Error('Bundle integrity check failed: the authored show was changed');
  const show=readPerformance(serialized),preview=previewManifest(show);
  if(JSON.stringify(value.preview)!==JSON.stringify(preview))throw Error('Bundle preview does not match the authored show');
+ const digest=await sha256(JSON.stringify({metadata:meta,preview,performance:show}));
+ if(digest!==value.sha256)throw Error('Bundle integrity check failed: creative content or metadata was changed');
  return {schema:BUNDLE_SCHEMA,version:1,sha256:digest,metadata:meta,preview,performance:show};
 }
 export function writeBundle(bundle){
