@@ -10,6 +10,7 @@ import { AlertDialog, AlertDialogContent, AlertDialogHeader, AlertDialogTitle, A
 import GameView from './game-view';
 import WorldPerformanceLibrary from './world-performance-library';
 import WorldAcceptanceLab from './world-acceptance-lab';
+import WorldAdaptiveGovernor from './world-adaptive-governor';
 import {MAX_FILE_BYTES,readWorldFile,writeWorldPack,type WorldPack, type MotionBand} from '../portal/world-bridge.mjs';
 import {assignObjectBand,WORLD_BANDS} from '../portal/world-director.mjs';
 import {MAX_PERFORMANCE_BYTES,createPerformance,readPerformance,writePerformance,editPerformanceCue,importDanceFlow,PALETTES,TRANSITIONS,type WorldPerformance,type WorldPerformanceCue} from '../portal/world-performance.mjs';
@@ -307,6 +308,7 @@ export default function Studio(){
           setPerformance(show);setSelectedPhrase(0);setPerformanceEnabled(true);
           setComposerMessage('Opened '+show.title+' from your local World Performance Library. Solo rave visuals are ready.');
         }}/>
+        <WorldAdaptiveGovernor engine={ready?engine.current:null} showReady={!!performanceShow&&performanceEnabled} roomActive={!!room}/>
         <WorldAcceptanceLab engine={ready?engine.current:null} showReady={!!performanceShow&&performanceEnabled} roomActive={!!room}/>
        </div>}
        <p className="music-rule">Imported scenes decorate solo workouts only. Calm mode overrides all motion and flashes. Shared rooms never receive these visuals.</p>

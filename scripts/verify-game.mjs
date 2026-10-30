@@ -19,6 +19,31 @@ try{
  const {matchesActivity,customMissionProgress,customMissionPreset}=await import(pathToFileURL(path.join(temp,'custom-missions.mjs')).href);
  const {PulseGame}=await import(pathToFileURL(path.join(temp,'game-engine.mjs')).href);
  const {createAcceptanceRecorder,CHECKLIST}=await import(pathToFileURL(path.resolve('portal/world-acceptance.mjs')).href);
+ const {createVisualGovernor,GOVERNOR_LEVELS}=await import(pathToFileURL(path.resolve('portal/world-adaptive-governor.mjs')).href);
+ const adaptive=createVisualGovernor();
+ check(adaptive.observe(10,true)===0&&adaptive.status().xrCallbacks===0,
+   'R9 optical governor is disabled by default even in immersive mock callbacks');
+ adaptive.setEnabled(true);
+ let renderClock=0;
+ for(let i=0;i<240;i++){renderClock+=1000/72;adaptive.observe(renderClock,true);}
+ check(adaptive.status().level===0,'R9 stable callbacks preserve full authored world effects');
+ for(let i=0;i<410;i++){renderClock+=40;adaptive.observe(renderClock,true);}
+ check(adaptive.status().level===2&&!GOVERNOR_LEVELS[2].allowCrossfade,
+   'R9 sustained slow callbacks progressively suppress optional effects and VR crossfades');
+ adaptive.observe(renderClock+1000,false);
+ check(adaptive.status().level===0&&!adaptive.status().immersive,
+   'R9 VR exit restores authored effects without changing portable worldpacks');
+ const mockVisualGame=Object.create(PulseGame.prototype);
+ let appliedLevel=-1;
+ Object.assign(mockVisualGame,{visualGovernor:createVisualGovernor(),
+   performanceWorld:{setAdaptiveLevel(level){appliedLevel=level;}}});
+ mockVisualGame.setAdaptiveWorldVisuals(true);
+ check(mockVisualGame.getAdaptiveWorldStatus().enabled,
+   'R9 game API opt-in arms only callback pacing, independent from the R7 recorder');
+ mockVisualGame.setAdaptiveWorldVisuals(false);
+ check(!mockVisualGame.getAdaptiveWorldStatus().enabled&&appliedLevel===0,
+   'R9 turning the feature off immediately restores the full visual tier');
+
  const xrDiagnostics=createAcceptanceRecorder();
  const localChecklist=Object.fromEntries(CHECKLIST.map(k=>[k,false]));
  xrDiagnostics.start();
@@ -107,6 +132,14 @@ try{
  check(mixed.visibleStages.size===2,'World transition uses at most two live display scenes');
  mixed.update(transitionStart+5*60/authored.bpm,authored.bpm,false,undefined,1,transitionStart+2);
  check(mixed.visibleStages.size===1,'Old scenes dispose when the authored transition completes');
+ mixed.setAdaptiveLevel(2);
+ mixed.update(transitionStart,authored.bpm,false,undefined,1,transitionStart);
+ check(mixed.visibleStages.size===1&&mixed.getFrameTelemetry().reason==='adaptive-effects-cut',
+   'R9 lowest adaptive visual tier forces one resident scene even during otherwise safe authored crossfade');
+ mixed.setAdaptiveLevel(0);
+ mixed.update(transitionStart,authored.bpm,false,undefined,1,transitionStart);
+ check(mixed.visibleStages.size===2,
+   'R9 visual tier recovery can resume authored scene transitions without editing source show');
  mixed.dispose();
  check(mixed.visibleStages.size===0,'All authored world geometry is disposed at teardown');
  const {estimateWorldCost,sceneTransitionPolicy,performanceBudgetReport}=await import(pathToFileURL(path.resolve('portal/world-render-budget.mjs')).href);
