@@ -13,6 +13,7 @@ export class PerformanceWorkoutWorld {
  private readonly visibleStages=new Map<number,CustomWorkoutWorld>();
  private quality:RenderTier='desktop';
  private lastTransitionReason='initial';
+ private lastPhraseIndex:number|null=null;
  readonly title:string;
  constructor(source:WorldPerformance){
   this.show=normalizePerformance(source);
@@ -27,6 +28,7 @@ export class PerformanceWorkoutWorld {
   if(quality===this.quality)return;
   this.clearStages();this.quality=quality;
  }
+ getFrameTelemetry(){return {activeStages:this.visibleStages.size,phraseIndex:this.lastPhraseIndex,reason:this.lastTransitionReason};}
  getRenderStatus(){
   return {tier:this.quality,activeStages:this.visibleStages.size,reason:this.lastTransitionReason,
    estimate:performanceBudgetReport(this.show,this.quality)};
@@ -38,6 +40,7 @@ export class PerformanceWorkoutWorld {
  update(seconds:number,bpm:number,reducedMotion:boolean,audioFrame:WorldAudioFrame|undefined,
   visualGain:number,renderTime:number){
   const cue=samplePerformance(this.show,Math.max(0,seconds));
+  this.lastPhraseIndex=cue.phraseIndex;
   const policy=sceneTransitionPolicy(this.show.worlds,cue.previousWorldIndex,cue.worldIndex,this.quality);
   const transitioning=cue.blend<1&&cue.previousWorldIndex!==cue.worldIndex&&policy.crossfade;
   this.lastTransitionReason=cue.blend<1&&cue.previousWorldIndex!==cue.worldIndex?

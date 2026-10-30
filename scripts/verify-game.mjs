@@ -18,6 +18,31 @@ try{
  const {parseHeartRate,HeartAccumulator,HeartMonitor}=await import(pathToFileURL(path.join(temp,'heart-rate.mjs')).href);
  const {matchesActivity,customMissionProgress,customMissionPreset}=await import(pathToFileURL(path.join(temp,'custom-missions.mjs')).href);
  const {PulseGame}=await import(pathToFileURL(path.join(temp,'game-engine.mjs')).href);
+ const {createAcceptanceRecorder,CHECKLIST}=await import(pathToFileURL(path.resolve('portal/world-acceptance.mjs')).href);
+ const xrDiagnostics=createAcceptanceRecorder();
+ const localChecklist=Object.fromEntries(CHECKLIST.map(k=>[k,false]));
+ xrDiagnostics.start();
+ check(!xrDiagnostics.capture({timeMs:10,xrPresenting:false,calls:3,triangles:2400,activeStages:1,phraseIndex:0,reason:'single-stage'}),
+  'R7 never converts a desktop mock frame into XR evidence');
+ for(let i=0;i<1100;i++){
+  xrDiagnostics.capture({timeMs:i*1000/72,xrPresenting:true,calls:3,triangles:2400,
+   activeStages:1,phraseIndex:i<540?0:1,reason:'single-stage'});
+ }
+ xrDiagnostics.stop();
+ const receipt=xrDiagnostics.receipt(localChecklist);
+ check(receipt.measurements.enoughForReview&&receipt.measurements.sceneChanges===1,
+  'R7 acceptance measures adequate browser XR callback spans and authored phrase switches');
+ check(receipt.verification==='USER_ATTESTED_ONLY_NOT_INDEPENDENTLY_VERIFIED'
+  &&!JSON.stringify(receipt).includes('score')
+  &&!JSON.stringify(receipt).includes('userAgent'),
+  'R7 receipt is self-attested and never exposes workout score, device ID or user agent');
+ const fakeAcceptance=Object.create(PulseGame.prototype);
+ Object.assign(fakeAcceptance,{performanceWorld:{},acceptanceRecorder:createAcceptanceRecorder()});
+ fakeAcceptance.startAcceptanceCapture();
+ check(fakeAcceptance.getAcceptanceSnapshot().recording,'R7 recorder arms through the real game API');
+ fakeAcceptance.stopAcceptanceCapture();
+ check(!fakeAcceptance.getAcceptanceSnapshot().recording,'R7 recorder stops via the game API');
+
  const {PerformanceWorkoutWorld}=await import(pathToFileURL(path.join(temp,'performance-workout-world.mjs')).href);
  const {createBundle,readBundle,writeBundle}=await import(pathToFileURL(path.resolve('portal/world-library-bundle.mjs')).href);
  const {PulseAudio}=await import(pathToFileURL(path.join(temp,'audio.mjs')).href);
