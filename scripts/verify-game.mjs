@@ -8,7 +8,7 @@ import ts from 'typescript';
 const require=createRequire(import.meta.url),temp=await fs.mkdtemp(path.join(os.tmpdir(),'pulse-game-'));
 let checks=0;const check=(condition,message)=>{assert.ok(condition,message);checks++;};
 try{
- for(const name of ['pulse','audio','training','journeys','coaching','worlds','custom-workout-world','performance-workout-world','companions','heart-rate','clans','custom-missions','game-engine']){const source=await fs.readFile('lib/'+name+'.ts','utf8');let code=ts.transpileModule(source,{compilerOptions:{target:ts.ScriptTarget.ES2022,module:ts.ModuleKind.ESNext}}).outputText;code=code.replace(/from '(\.\/[\w-]+)'/g,"from '$1.mjs'").replaceAll("from 'three'","from '"+pathToFileURL(path.join(path.dirname(require.resolve('three')),'three.module.js')).href+"'");code=code.replace(/from '\.\.\/portal\/([^']+)'/g,(_,asset)=>"from '"+pathToFileURL(path.resolve('portal',asset)).href+"'");
+ for(const name of ['pulse','audio','training','journeys','coaching','worlds','custom-workout-world','performance-workout-world','showcase-world','companions','heart-rate','clans','custom-missions','game-engine']){const source=await fs.readFile('lib/'+name+'.ts','utf8');let code=ts.transpileModule(source,{compilerOptions:{target:ts.ScriptTarget.ES2022,module:ts.ModuleKind.ESNext}}).outputText;code=code.replace(/from '(\.\/[\w-]+)'/g,"from '$1.mjs'").replaceAll("from 'three'","from '"+pathToFileURL(path.join(path.dirname(require.resolve('three')),'three.module.js')).href+"'");code=code.replace(/from '\.\.\/portal\/([^']+)'/g,(_,asset)=>"from '"+pathToFileURL(path.resolve('portal',asset)).href+"'");
  await fs.writeFile(path.join(temp,name+'.mjs'),code);}
  const {DEFAULT_CONFIG,makeChart,recoveryCue,clock,weekStats,sessionPhase,DURATIONS,mindfulHands,movementProgress,MODES,isActive,danceCue}=await import(pathToFileURL(path.join(temp,'pulse.mjs')).href);
  const {JOURNEYS,journeyPresets,qualifiesJourneyStep,nextJourneyPreset}=await import(pathToFileURL(path.join(temp,'journeys.mjs')).href);
@@ -107,6 +107,40 @@ try{
  const authored=starterChart();
  const composed=createPerformance(authored,[SAMPLE_WORLD,{...SAMPLE_WORLD,title:'Second Domistika realm'}]);
  const directorSheet=createDirectorSheet(composed),oldWorldJson=writePerformance(composed);
+ const {showcaseManifest,createShowcaseNavigator,WALK_BOUNDS}=await import(
+  pathToFileURL(path.resolve('portal/world-showcase.mjs')).href);
+ const curated=showcaseManifest(composed);
+ check(curated.roomCount===2&&curated.rooms.map(r=>r.title).join('|')===
+   [SAMPLE_WORLD.title,'Second Domistika realm'].join('|'),
+   'R11 private gallery lists validated authored exhibits without uploading or inventing artwork');
+ const navigator=createShowcaseNavigator(curated.roomCount);
+ navigator.move(1,0,.05);check(navigator.status().z<2.2,
+   'R11 uses low-speed bounded gallery movement independent of workout note positions');
+ navigator.select(1);
+ check(navigator.status().index===1&&navigator.status().z===2.2&&
+  navigator.status().x>=WALK_BOUNDS.minX,
+  'R11 room switching resets the visitor to a known safe view');
+ const mockGallery=Object.create(PulseGame.prototype);
+ let visited=0,motion=false;
+ Object.assign(mockGallery,{status:{phase:'idle'},renderer:{xr:{isPresenting:false}},
+  showcaseWorld:{
+   getStatus(){return {roomIndex:visited,motion};},
+   setRoom(index){visited=index;return this.getStatus();},
+   nextRoom(delta){visited=(visited+delta+2)%2;return this.getStatus();},
+   setMotion(next){motion=next;}
+  }});
+ mockGallery.selectShowcaseRoom(1);
+ check(mockGallery.getShowcaseStatus().roomIndex===1,'R11 gallery room selector uses the canonical game API');
+ mockGallery.stepShowcaseRoom(-1);
+ mockGallery.setShowcaseMotion(true);
+ check(mockGallery.getShowcaseStatus().roomIndex===0&&mockGallery.getShowcaseStatus().motion,
+   'R11 gallery exhibit navigation and motion setting stay separate from workout scoring');
+ mockGallery.status.phase='playing';
+ let showRejected=false;
+ try{mockGallery.setShowcaseEnabled(null);}catch{showRejected=true;}
+ check(showRejected,'R11 refuses to open/close galleries while a real workout is playing');
+ check(writePerformance(composed)===oldWorldJson,'R11 does not mutate authored World Performance JSON');
+
  check(directorSheet.phrases.length===authored.phrases.length&&directorSheet.phrases[1].worldIndex===1
    &&directorSheet.phrases[1].startCount===8,
    'R10 visual director derives storyboard directly from authored DanceFlow counts and WorldPacks');
