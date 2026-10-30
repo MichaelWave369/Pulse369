@@ -115,22 +115,22 @@ try{
  check(!experiencePreflight(composed,authored.bpm+8).matchedTrackBpm,
    'R10 director warns about visual/song BPM mismatches before immersive launch');
  const fakeRehearsal=Object.create(PulseGame.prototype);
- const clock=createDirectorClock();
+ const directorTestClock=createDirectorClock();
  Object.assign(fakeRehearsal,{
    performanceWorld:{getDirectorDuration:()=>directorSheet.durationSeconds},
-   directorClock:clock,renderer:{xr:{isPresenting:false}},status:{phase:'idle'}
+   directorClock:directorTestClock,renderer:{xr:{isPresenting:false}},status:{phase:'idle'}
  });
  fakeRehearsal.setDirectorRehearsalEnabled(true);
  fakeRehearsal.seekDirectorRehearsal(directorSheet.phrases[1].startSeconds);
  fakeRehearsal.setDirectorRehearsalPlaying(true);
- check(clock.status().playing&&clock.status().seconds===directorSheet.phrases[1].startSeconds,
+ check(directorTestClock.status().playing&&directorTestClock.status().seconds===directorSheet.phrases[1].startSeconds,
    'R10 real game API can silently seek and play the authored stage while idle');
  fakeRehearsal.status.phase='playing';
  let rehearsalBlocked=false;
  try{fakeRehearsal.seekDirectorRehearsal(5);}catch{rehearsalBlocked=true;}
  check(rehearsalBlocked,'R10 does not allow rehearsal to replace the live workout session clock');
  fakeRehearsal.setDirectorRehearsalEnabled(false);
- check(!clock.status().enabled&&!clock.status().playing&&writePerformance(composed)===oldWorldJson,
+ check(!directorTestClock.status().enabled&&!directorTestClock.status().playing&&writePerformance(composed)===oldWorldJson,
    'R10 toggling rehearsal off restores visuals and never edits the portable creative show');
 
  const libraryBundle=await createBundle(composed,{creator:'Offline test artist',description:'A show',license:'CC0-1.0',tags:['world']});
