@@ -35,6 +35,8 @@ jobs:
         run: node --test portal/world-adaptive-governor.test.mjs
       - name: World Forge R10 immersive experience director rehearsal and preflight tests
         run: node --test portal/world-experience-director.test.mjs
+      - name: World Forge R11 private art gallery, room manifest and locomotion tests
+        run: node --test portal/world-showcase.test.mjs
       - name: Build browser and Worker
         run: pnpm run build
       - name: Build public React portal
