@@ -19,6 +19,7 @@ try{
  const {matchesActivity,customMissionProgress,customMissionPreset}=await import(pathToFileURL(path.join(temp,'custom-missions.mjs')).href);
  const {PulseGame}=await import(pathToFileURL(path.join(temp,'game-engine.mjs')).href);
  const {PerformanceWorkoutWorld}=await import(pathToFileURL(path.join(temp,'performance-workout-world.mjs')).href);
+ const {createBundle,readBundle,writeBundle}=await import(pathToFileURL(path.resolve('portal/world-library-bundle.mjs')).href);
  const {PulseAudio}=await import(pathToFileURL(path.join(temp,'audio.mjs')).href);
  const {fitWorldBackdrop}=await import(pathToFileURL(path.resolve('portal/world-stage-layout.mjs')).href);
  const {SAMPLE_WORLD,readWorldFile,writeWorldPack}=await import(pathToFileURL(path.resolve('portal/world-bridge.mjs')).href);
@@ -27,6 +28,17 @@ try{
  const {createPerformance,editPerformanceCue,samplePerformance,writePerformance,readPerformance}=await import(pathToFileURL(path.resolve('portal/world-performance.mjs')).href);
  const authored=starterChart();
  const composed=createPerformance(authored,[SAMPLE_WORLD,{...SAMPLE_WORLD,title:'Second Domistika realm'}]);
+ const libraryBundle=await createBundle(composed,{creator:'Offline test artist',description:'A show',license:'CC0-1.0',tags:['world']});
+ check(libraryBundle.preview.scenes.length===2&&libraryBundle.preview.phrases===authored.phrases.length,
+   'R6 manifest previews come directly from validated portable authored worlds.');
+ check((await readBundle(writeBundle(libraryBundle))).sha256===libraryBundle.sha256,
+   'R6 library bundles roundtrip with an integrity digest and no network service.');
+ let tampered=JSON.parse(writeBundle(libraryBundle));tampered.metadata.creator='Changed artist';
+ let rejected=false;
+ try{await readBundle(JSON.stringify(tampered));}catch{rejected=true;}
+ check(rejected,'R6 refuses altered bundle metadata unless a new digest is authored.');
+ check(!JSON.stringify(libraryBundle).includes('audioFile')&&!JSON.stringify(libraryBundle).includes('trackId'),
+   'R6 bundle contains visual compositions only, not music files or song IDs.');
  check(composed.cues.length===authored.phrases.length&&readPerformance(writePerformance(composed)).worlds.length===2,
    'World Forge R4 composes validated offline choreography and scenery into a music-free show');
  const transitionStart=8*60/authored.bpm;

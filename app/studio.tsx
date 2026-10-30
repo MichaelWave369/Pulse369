@@ -8,6 +8,7 @@ import { Slider } from '@/components/ui/slider';
 import { Progress } from '@/components/ui/progress';
 import { AlertDialog, AlertDialogContent, AlertDialogHeader, AlertDialogTitle, AlertDialogDescription, AlertDialogFooter, AlertDialogCancel, AlertDialogAction } from '@/components/ui/alert-dialog';
 import GameView from './game-view';
+import WorldPerformanceLibrary from './world-performance-library';
 import {MAX_FILE_BYTES,readWorldFile,writeWorldPack,type WorldPack, type MotionBand} from '../portal/world-bridge.mjs';
 import {assignObjectBand,WORLD_BANDS} from '../portal/world-director.mjs';
 import {MAX_PERFORMANCE_BYTES,createPerformance,readPerformance,writePerformance,editPerformanceCue,importDanceFlow,PALETTES,TRANSITIONS,type WorldPerformance,type WorldPerformanceCue} from '../portal/world-performance.mjs';
@@ -301,6 +302,10 @@ export default function Studio(){
           <p className="music-rule">Authored chart: {performanceShow.chart.bpm} BPM · {performanceShow.chart.offsetMs} ms offset. Current track: {config.track.bpm} BPM. {config.track.bpm!==performanceShow.chart.bpm?'Adjust the chart BPM before exporting if you need accurate phrase alignment.':'Phrase timing matches the selected track BPM.'} This affects visuals only, never the target chart.</p>
           <button type="button" className="btn small" onClick={exportPerformance}>Export World Performance</button>
         </>}
+        <WorldPerformanceLibrary current={performanceShow} disabled={active||!!room} onLoad={show=>{
+          setPerformance(show);setSelectedPhrase(0);setPerformanceEnabled(true);
+          setComposerMessage('Opened '+show.title+' from your local World Performance Library. Solo rave visuals are ready.');
+        }}/>
        </div>}
        <p className="music-rule">Imported scenes decorate solo workouts only. Calm mode overrides all motion and flashes. Shared rooms never receive these visuals.</p>
       </div><Picker label="Your coach" value={config.coach??'nova'} options={[...COACHES.map(c=>({value:c.id,label:c.name+' · '+c.role})),{value:'none',label:'Solo · no coach'}]} onChange={v=>changeConfig({coach:v as Config['coach']})} disabled={active||!!room}/><Picker label="Session plan" value={config.program??'flow'} options={PROGRAMS.map(p=>({value:p.id,label:p.title}))} onChange={v=>changeConfig({program:v as Config['program']})} disabled={active||!!room||!isActive(config.mode)}/><p className="music-rule">{PROGRAMS.find(p=>p.id===config.program)?.description}</p><Picker label="Virtual partners" value={String(config.companions??2)} options={[{value:'0',label:'Just me and my coach'},{value:'1',label:'Echo · 1 partner'},{value:'2',label:'Echo & Sol · 2 partners'}]} onChange={v=>changeConfig({companions:Number(v)})} disabled={active||!!room}/><Toggle label="Seated movement" checked={config.seated} onChange={v=>changeConfig({seated:v})} disabled={active||!!room}/><Toggle label="Lower visual motion" checked={config.calm} onChange={v=>changeConfig({calm:v})} disabled={active||!!room}/><Toggle label="Spoken coach cues" checked={voice} onChange={setVoice}/><div className="volume"><Volume2 size={16}/><Slider value={[volume*100]} min={0} max={100} step={1} onValueChange={v=>setVolume(v[0]/100)} aria-label="Music volume"/></div>
