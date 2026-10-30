@@ -39,10 +39,10 @@ export class ShowcaseWorld {
   wall(.16,5,22,0x142437,5.9,2.35,-4);
   for(const x of [-4.8,4.8]){
    const rail=wall(.06,.04,19,0x5c9dae,x,.55,-4);
-   rail.material.color.setHex(0x527c96);
+   (rail.material as THREE.MeshStandardMaterial).color.setHex(0x527c96);
   }
   const plinth=wall(3,.32,1.3,0x334355,0,.12,-8.2);
-  plinth.material.color.setHex(0x24394c);
+  (plinth.material as THREE.MeshStandardMaterial).color.setHex(0x24394c);
   const ambient=new THREE.HemisphereLight(0xc8e6ff,0x1d253f,1.1);
   const key=new THREE.DirectionalLight(0xffffff,1.5);
   key.position.set(1.5,5,0);
