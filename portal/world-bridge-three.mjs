@@ -8,14 +8,15 @@ const PALETTE = {
   ember:{full:'#ffac67',bass:'#ff683e',mid:'#f3b857',high:'#f9da9b',beat:'#ffc19c'},
   ice:{full:'#9feaff',bass:'#69b4ff',mid:'#aae7ff',high:'#d9fcff',beat:'#e2eaff'}
 };
-function geometry(o) {
+function geometry(o,quality='desktop') {
   const [x,y,z]=o.dimensions;
+  const low=quality==='quest';
   switch(o.kind) {
     case 'box':return new THREE.BoxGeometry(x,y,z);
-    case 'sphere':return new THREE.SphereGeometry(x*.5,20,12);
-    case 'cylinder':return new THREE.CylinderGeometry(x*.5,x*.5,y,20);
-    case 'torus':return new THREE.TorusGeometry(x*.55,Math.min(x*.15,y*.3),9,28);
-    case 'tube':return new THREE.TorusKnotGeometry(x*.36,Math.min(x*.10,y*.25),64,8,2,3);
+    case 'sphere':return new THREE.SphereGeometry(x*.5,low?12:20,low?10:12);
+    case 'cylinder':return new THREE.CylinderGeometry(x*.5,x*.5,y,low?12:20);
+    case 'torus':return new THREE.TorusGeometry(x*.55,Math.min(x*.15,y*.3),low?6:9,low?16:28);
+    case 'tube':return new THREE.TorusKnotGeometry(x*.36,Math.min(x*.10,y*.25),low?40:64,low?6:8,2,3);
     case 'mesh': {
       const mesh=new THREE.BufferGeometry();
       mesh.setAttribute('position',new THREE.Float32BufferAttribute(o.positions,3));
@@ -25,8 +26,8 @@ function geometry(o) {
     default:throw Error('Unsupported geometry');
   }
 }
-function makeMesh(o) {
-  const g=geometry(o);
+function makeMesh(o,quality) {
+  const g=geometry(o,quality);
   if(o.mirroredX) {g.scale(-1,1,1);g.computeVertexNormals();}
   const m=new THREE.MeshStandardMaterial({color:o.color,roughness:.55,metalness:.18,
     side:THREE.DoubleSide,emissive:'#000000'});
@@ -40,10 +41,11 @@ function makeMesh(o) {
 /** Geometry is visual-only. The entire installation is shifted beyond the user's reachable area.
  * Rest-pose geometry remains authoritative; preview animation cannot create hit targets.
  */
-export function createWorldVisual(pack) {
+export function createWorldVisual(pack,{quality='desktop'}={}) {
+  if(!['quest','desktop'].includes(quality))throw Error('Unsupported visual quality');
   const root=new THREE.Group();
   root.name='Untrusted-free visual preview: Domistika world';
-  const items=pack.workshop.objects.map(o=>({data:o,mesh:makeMesh(o),envelope:0}));
+  const items=pack.workshop.objects.map(o=>({data:o,mesh:makeMesh(o,quality),envelope:0}));
   items.forEach(({mesh})=>root.add(mesh));
   const bounds=new THREE.Box3().setFromObject(root);
   if(!bounds.isEmpty()) {
