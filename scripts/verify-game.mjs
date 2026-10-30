@@ -47,7 +47,7 @@ try{
  check(mixed.visibleStages.size===0,'All authored world geometry is disposed at teardown');
  const {estimateWorldCost,sceneTransitionPolicy,performanceBudgetReport}=await import(pathToFileURL(path.resolve('portal/world-render-budget.mjs')).href);
  const heavyObjects=Array.from({length:48},(_,i)=>({...SAMPLE_WORLD.workshop.objects[0],
-   id:'quest-r5-'+String(i).padStart(4,'0'),name:'Quest knot '+i,kind:'tube',dimensions:[1,1,1]}));
+   id:'work-quest-r5-'+String(i).padStart(4,'0'),name:'Quest knot '+i,kind:'tube',dimensions:[1,1,1]}));
  const heavyWorld={...SAMPLE_WORLD,workshop:{schema:'domistika.xr.workshop.v1',objects:heavyObjects}};
  const heavyShow=createPerformance(authored,[heavyWorld,{...heavyWorld,title:'Heavy second world'}]);
  const projected=estimateWorldCost(heavyWorld,'quest');
